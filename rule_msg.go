@@ -1,7 +1,5 @@
 package govalidator
 
-import ()
-
 var ruleErrorMsgMap = map[string]interface{}{
 	"accepted":        "The :attribute must be accepted.",
 	"active_url":      "The :attribute is not a valid URL.",
