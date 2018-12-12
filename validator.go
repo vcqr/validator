@@ -20,11 +20,13 @@ var (
 type Validator struct {
 	Fails  bool
 	TagMap map[string]func(...reflect.Value) bool
+	// 设置错误信息
+	errorMsg map[string]string
 }
 
 func New() *Validator {
 
-	validator := &Validator{true, make(map[string]func(...reflect.Value) bool)}
+	validator := &Validator{true, make(map[string]func(...reflect.Value) bool), make(map[string]string)}
 
 	ruleMap = make(map[string]interface{})
 	typeMap = make(map[string]interface{})
@@ -107,8 +109,12 @@ func (this *Validator) doProcess() {
 				params[1] = reflect.ValueOf(val)
 				params[2] = reflect.ValueOf(fieldType)
 				params[3] = reflect.ValueOf(fieldVal)
-				ret := callMethod.Func.Call(params)
-				fmt.Println("this is error===========", ret[0])
+				retArr := callMethod.Func.Call(params)
+				ret := retArr[0].Bool()
+				if ret == false {
+					this.AddErrorMsg(key, method, val)
+				}
+				fmt.Println("this is error===========", ret)
 
 			} else {
 				lowerMethod := strings.ToLower(method)
@@ -132,6 +138,24 @@ func (this *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal inte
 	this.parseRule(fieldKey, ruleStr)
 
 	return this
+}
+
+func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
+	keyStr := reflect.ValueOf(fieldKey).String()
+	valStr := reflect.ValueOf(value).String()
+	method := reflect.ValueOf(attribute).String()
+
+	method = strings.ToLower(method)
+
+	err := ruleErrorMsgMap[method]
+	errStr := reflect.ValueOf(err).String()
+	errStr = strings.Replace(errStr, ":attribute", keyStr, -1)
+	errStr = strings.Replace(errStr, ":value", valStr, -1)
+
+	this.Fails = false
+	this.errorMsg[keyStr] = errStr
+
+	fmt.Println("错误信息", errStr)
 }
 
 func Ucfirst(str string) string {
