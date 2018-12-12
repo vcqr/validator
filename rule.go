@@ -89,7 +89,7 @@ func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	fmt.Println(fieldType)
+
 	if fieldType == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
 		if err != nil {

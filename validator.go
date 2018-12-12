@@ -7,8 +7,13 @@ import (
 )
 
 var (
+	// 设置相关的验证规则
 	ruleMap map[string]interface{}
+
+	// 设置字段的数据类型
 	typeMap map[string]interface{}
+
+	// 设置数据的值
 	dataMap map[string]interface{}
 )
 
@@ -54,9 +59,9 @@ func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 
 	}
 
-	fmt.Println(typeMap)
-	//fmt.Println(ruleMap)
-	//fmt.Println(dataMap)
+	//	fmt.Println(typeMap)
+	//	fmt.Println(ruleMap)
+	//	fmt.Println(dataMap)
 }
 
 func (this *Validator) parseRule(ruleKey string, rules string) {
@@ -92,15 +97,11 @@ func (this *Validator) doProcess() {
 			fieldType := typeMap[fieldKey+".type"]
 			fieldTemp := dataMap[fieldKey+".val"]
 
-			fieldVal, ok := fieldTemp.(reflect.Value)
-			fmt.Println("field val duan yan", fieldVal, ok)
+			fieldVal, _ := fieldTemp.(reflect.Value)
 
 			callMethod, exist := rT.MethodByName(method)
-			//fmt.Println(callMethod)
+
 			if exist {
-
-				fmt.Println(pos, key, val, fieldKey, method, val, fieldVal, fieldType)
-
 				params := make([]reflect.Value, 4)
 				params[0] = reflect.ValueOf(rule)
 				params[1] = reflect.ValueOf(val)
@@ -112,22 +113,23 @@ func (this *Validator) doProcess() {
 			} else {
 				lowerMethod := strings.ToLower(method)
 				defineFunc, isSet := this.TagMap[lowerMethod]
-				fmt.Println("call defineFunc === ", lowerMethod, defineFunc, isSet)
 				if isSet {
-					fmt.Println("call define func val === ", fieldVal)
-
 					ret := defineFunc(reflect.ValueOf(val), reflect.ValueOf(fieldType), fieldVal)
 					fmt.Println("call define func ret === ", ret)
 				} else {
 					//return false
+					fmt.Println("the method not exits", method)
 				}
 			}
 		}
 	}
-
 }
 
-func (this *Validator) AddRule(field, fieldType, rule string, dataVal interface{}) *Validator {
+func (this *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal interface{}) *Validator {
+	typeMap[fieldKey+".type"] = fieldType
+	dataMap[fieldKey+".val"] = reflect.ValueOf(dataVal)
+
+	this.parseRule(fieldKey, ruleStr)
 
 	return this
 }
