@@ -1,7 +1,7 @@
 package govalidator
 
 import (
-	"fmt"
+	_ "fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -18,8 +18,6 @@ func NewRule() *Rules {
 }
 
 func (this *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	fmt.Println("call in", ruleVal, fieldType, fieldVal)
-
 	compareStr := ""
 	if fieldType == "string" {
 		compareStr = fieldVal.String()
@@ -89,7 +87,6 @@ func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-
 	if fieldType == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
 		if err != nil {
@@ -127,4 +124,17 @@ func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	}
 
 	return true
+}
+
+func (this *Rules) Email(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	if fieldType == "string" {
+		str := fieldVal.String()
+		if rxEmail.MatchString(str) {
+			return true
+		}
+	} else {
+		return false
+	}
+
+	return false
 }

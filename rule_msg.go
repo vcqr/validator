@@ -1,6 +1,9 @@
 package govalidator
 
 var ruleErrorMsgMap = map[string]interface{}{
+	"defalut":  "The :attribute is invalid.",       // 默认信息
+	"undefine": "The func :func() is not defined.", // 验证方法没有定义
+
 	"accepted":        "The :attribute must be accepted.",
 	"active_url":      "The :attribute is not a valid URL.",
 	"after":           "The :attribute must be a date after :date.",

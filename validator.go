@@ -1,7 +1,7 @@
 package govalidator
 
 import (
-	"fmt"
+	_ "fmt"
 	"reflect"
 	"strings"
 )
@@ -21,7 +21,7 @@ type Validator struct {
 	Fails  bool
 	TagMap map[string]func(...reflect.Value) bool
 	// 设置错误信息
-	errorMsg map[string]string
+	ErrorMsg map[string]string
 }
 
 func New() *Validator {
@@ -58,12 +58,7 @@ func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 		dataMap[ruleKey+".val"] = objV.Field(i)
 
 		this.parseRule(ruleKey, ruleVal)
-
 	}
-
-	//	fmt.Println(typeMap)
-	//	fmt.Println(ruleMap)
-	//	fmt.Println(dataMap)
 }
 
 func (this *Validator) parseRule(ruleKey string, rules string) {
@@ -114,17 +109,16 @@ func (this *Validator) doProcess() {
 				if ret == false {
 					this.AddErrorMsg(key, method, val)
 				}
-				fmt.Println("this is error===========", ret)
-
 			} else {
 				lowerMethod := strings.ToLower(method)
 				defineFunc, isSet := this.TagMap[lowerMethod]
 				if isSet {
 					ret := defineFunc(reflect.ValueOf(val), reflect.ValueOf(fieldType), fieldVal)
-					fmt.Println("call define func ret === ", ret)
+					if ret == false {
+						this.AddErrorMsg(key, lowerMethod, val)
+					}
 				} else {
-					//return false
-					fmt.Println("the method not exits", method)
+					this.AddFuncErrorMsg(key, lowerMethod)
 				}
 			}
 		}
@@ -140,22 +134,53 @@ func (this *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal inte
 	return this
 }
 
+func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
+	keyStr := reflect.ValueOf(fieldKey).String()
+	method := reflect.ValueOf(attribute).String()
+
+	method = strings.ToLower(method)
+
+	errMsg := ""
+	errStr, ok := ruleErrorMsgMap["undefine"]
+
+	if ok {
+		errMsg = reflect.ValueOf(errStr).String()
+		errMsg = strings.Replace(errMsg, ":func", method, -1)
+	} else {
+		errMsg = "The func " + method + "() is not defined."
+	}
+
+	this.Fails = false
+	this.ErrorMsg[keyStr] = errMsg
+}
+
 func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
 	keyStr := reflect.ValueOf(fieldKey).String()
 	valStr := reflect.ValueOf(value).String()
 	method := reflect.ValueOf(attribute).String()
 
 	method = strings.ToLower(method)
+	filedStr := strings.Replace(keyStr, "."+method, "", -1)
 
-	err := ruleErrorMsgMap[method]
-	errStr := reflect.ValueOf(err).String()
-	errStr = strings.Replace(errStr, ":attribute", keyStr, -1)
-	errStr = strings.Replace(errStr, ":value", valStr, -1)
+	errMsg := ""
+	errStr, exits := ruleErrorMsgMap[method]
+
+	if exits {
+		errMsg = reflect.ValueOf(errStr).String()
+		errMsg = strings.Replace(errMsg, ":attribute", filedStr, -1)
+		errMsg = strings.Replace(errMsg, ":value", valStr, -1)
+	} else {
+		defalutStr, ok := ruleErrorMsgMap["defalut"]
+		if ok {
+			errMsg = reflect.ValueOf(defalutStr).String()
+			errMsg = strings.Replace(errMsg, ":attribute", filedStr, -1)
+		} else {
+			errMsg = "The " + filedStr + " is invalid."
+		}
+	}
 
 	this.Fails = false
-	this.errorMsg[keyStr] = errStr
-
-	fmt.Println("错误信息", errStr)
+	this.ErrorMsg[keyStr] = errMsg
 }
 
 func Ucfirst(str string) string {
