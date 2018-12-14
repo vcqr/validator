@@ -1,7 +1,7 @@
 package govalidator
 
 import (
-	_ "fmt"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -35,12 +35,16 @@ func New() *Validator {
 	return validator
 }
 
-func (this *Validator) Validate(obj interface{}) {
+func (this *Validator) ValidateStruct(obj interface{}) {
 	objT := reflect.TypeOf(obj)
 	objV := reflect.ValueOf(obj)
 
 	this.parseData(objT, objV)
 
+	this.doProcess()
+}
+
+func (this *Validator) Validate() {
 	this.doProcess()
 }
 
@@ -53,6 +57,7 @@ func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 		ruleKey = objName + "." + objT.Field(i).Name
 
 		ruleVal := objT.Field(i).Tag.Get("validate")
+		ruleVal = strings.TrimSpace(ruleVal)
 
 		typeMap[ruleKey+".type"] = objT.Field(i).Type.Kind().String()
 		dataMap[ruleKey+".val"] = objV.Field(i)
@@ -75,6 +80,9 @@ func (this *Validator) parseRule(ruleKey string, rules string) {
 		} else {
 			tempKey = rule
 		}
+
+		tempKey = strings.TrimSpace(tempKey)
+		val = strings.TrimSpace(val)
 
 		ruleMap[ruleKey+"."+tempKey] = val
 	}
@@ -130,6 +138,25 @@ func (this *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal inte
 	dataMap[fieldKey+".val"] = reflect.ValueOf(dataVal)
 
 	this.parseRule(fieldKey, ruleStr)
+
+	return this
+}
+
+func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[string]interface{}) *Validator {
+	for key, tag := range ruleMap {
+		if len(tag) < 2 {
+			panic("rule error: At least two " + key + " elements.")
+		}
+
+		tempData, ok := dataVal[key]
+		var data interface{}
+		if ok {
+			data = tempData
+			fmt.Println(tempData, ok)
+		}
+
+		this.AddRule(key, tag[0], tag[1], data)
+	}
 
 	return this
 }
