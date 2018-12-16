@@ -1,7 +1,7 @@
 package govalidator
 
 import (
-	"fmt"
+	_ "fmt"
 	"reflect"
 	"strings"
 )
@@ -25,7 +25,6 @@ type Validator struct {
 }
 
 func New() *Validator {
-
 	validator := &Validator{true, make(map[string]func(...reflect.Value) bool), make(map[string]string)}
 
 	ruleMap = make(map[string]interface{})
@@ -35,17 +34,17 @@ func New() *Validator {
 	return validator
 }
 
-func (this *Validator) ValidateStruct(obj interface{}) {
+func (this *Validator) Struct(obj interface{}) {
 	objT := reflect.TypeOf(obj)
 	objV := reflect.ValueOf(obj)
 
 	this.parseData(objT, objV)
 
-	this.doProcess()
+	this.doParse()
 }
 
 func (this *Validator) Validate() {
-	this.doProcess()
+	this.doParse()
 }
 
 func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
@@ -88,7 +87,7 @@ func (this *Validator) parseRule(ruleKey string, rules string) {
 	}
 }
 
-func (this *Validator) doProcess() {
+func (this *Validator) doParse() {
 	if ruleMap != nil && typeMap != nil {
 		rule := NewRule()
 		rT := reflect.TypeOf(rule)
@@ -152,7 +151,19 @@ func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[strin
 		var data interface{}
 		if ok {
 			data = tempData
-			fmt.Println(tempData, ok)
+		} else {
+			if this.ContainSometimes(tag[1]) {
+				continue
+			}
+
+			if this.ContainRequired(tag[1]) {
+				this.AddErrorMsg(key, "required", "null")
+				continue
+			}
+
+			this.AddErrorMsg(key, "null", "null")
+
+			continue
 		}
 
 		this.AddRule(key, tag[0], tag[1], data)
@@ -208,6 +219,27 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
 
 	this.Fails = false
 	this.ErrorMsg[keyStr] = errMsg
+}
+
+func (this *Validator) ContainRequired(sRule string) bool {
+	str := string([]rune(sRule))
+	pos := strings.Index(str, "required")
+	if pos != -1 {
+		return true
+	}
+
+	return false
+}
+
+func (this *Validator) ContainSometimes(sRule string) bool {
+	str := string([]rune(sRule))
+	pos := strings.Index(str, "sometimes")
+
+	if pos != -1 {
+		return true
+	}
+
+	return false
 }
 
 func Ucfirst(str string) string {
