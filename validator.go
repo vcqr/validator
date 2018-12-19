@@ -70,6 +70,10 @@ func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 }
 
 func (this *Validator) parseRule(ruleKey string, rules string) {
+	if rules == "" || len(rules) <= 0 {
+		panic("rule error: Missing validation rules.")
+	}
+
 	ruleArr := strings.Split(rules, "|")
 
 	for _, rule := range ruleArr {
@@ -199,7 +203,11 @@ func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
 	}
 
 	this.Fails = false
-	this.ErrorMsg[keyStr] = errMsg
+
+	_, err := this.ErrorMsg[keyStr]
+	if !err {
+		this.ErrorMsg[keyStr] = errMsg
+	}
 }
 
 func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
@@ -228,7 +236,11 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
 	}
 
 	this.Fails = false
-	this.ErrorMsg[keyStr] = errMsg
+
+	_, ok := this.ErrorMsg[keyStr]
+	if !ok {
+		this.ErrorMsg[keyStr] = errMsg
+	}
 }
 
 func (this *Validator) ContainRequired(sRule string) bool {
