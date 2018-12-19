@@ -18,8 +18,12 @@ var (
 )
 
 type Validator struct {
-	Fails  bool
+	// 是否验证通过
+	Fails bool
+
+	// 自定义验证方法
 	TagMap map[string]func(...reflect.Value) bool
+
 	// 设置错误信息
 	ErrorMsg map[string]string
 }
@@ -103,6 +107,12 @@ func (this *Validator) doParse() {
 
 			fieldVal, _ := fieldTemp.(reflect.Value)
 
+			// 检查传的值是否有效
+			if !fieldVal.IsValid() {
+				this.AddErrorMsg(key, strings.ToLower(method), "null")
+				continue
+			}
+
 			callMethod, exist := rT.MethodByName(method)
 
 			if exist {
@@ -149,7 +159,7 @@ func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[strin
 
 		tempData, ok := dataVal[key]
 		var data interface{}
-		if ok {
+		if ok && reflect.ValueOf(tempData).IsValid() {
 			data = tempData
 		} else {
 			if this.ContainSometimes(tag[1]) {
@@ -157,7 +167,7 @@ func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[strin
 			}
 
 			if this.ContainRequired(tag[1]) {
-				this.AddErrorMsg(key, "required", "null")
+				this.AddErrorMsg(key+".required", "required", "null")
 				continue
 			}
 

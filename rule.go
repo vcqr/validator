@@ -138,3 +138,18 @@ func (this *Rules) Email(ruleVal, fieldType string, fieldVal reflect.Value) bool
 
 	return false
 }
+
+func (this *Rules) Required(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	if fieldType == "string" {
+		str := fieldVal.String()
+		if str == "" {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (this *Rules) Sometimes(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	return true
+}
