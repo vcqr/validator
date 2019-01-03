@@ -6,6 +6,20 @@ import (
 	"strings"
 )
 
+//
+const (
+	STR_NULL      string = "null"
+	STR_REQUIRED  string = "required"
+	STR_UNDEFINE  string = "undefine"
+	STR_SOMETIMES string = "sometimes"
+	STR_DEFALUT   string = "defalut"
+	STR_VALIDATE  string = "validate"
+
+	ERR_ATTR_FUNC      string = ":func"
+	ERR_ATTR_ATTRIBUTE string = ":attribute"
+	ERR_ATTR_VALUE     string = ":value"
+)
+
 var (
 	// 设置相关的验证规则
 	ruleMap map[string]interface{}
@@ -59,7 +73,7 @@ func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 		var ruleKey = ""
 		ruleKey = objName + "." + objT.Field(i).Name
 
-		ruleVal := objT.Field(i).Tag.Get("validate")
+		ruleVal := objT.Field(i).Tag.Get(STR_VALIDATE)
 		ruleVal = strings.TrimSpace(ruleVal)
 
 		typeMap[ruleKey+".type"] = objT.Field(i).Type.Kind().String()
@@ -78,7 +92,7 @@ func (this *Validator) parseRule(ruleKey string, rules string) {
 
 	for _, rule := range ruleArr {
 		var tempKey string
-		val := "null"
+		val := STR_NULL
 
 		pos := strings.IndexAny(rule, ":")
 		if pos != -1 {
@@ -113,7 +127,7 @@ func (this *Validator) doParse() {
 
 			// 检查传的值是否有效
 			if !fieldVal.IsValid() {
-				this.AddErrorMsg(key, strings.ToLower(method), "null")
+				this.AddErrorMsg(key, strings.ToLower(method), STR_NULL)
 				continue
 			}
 
@@ -171,11 +185,11 @@ func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[strin
 			}
 
 			if this.ContainRequired(tag[1]) {
-				this.AddErrorMsg(key+".required", "required", "null")
+				this.AddErrorMsg(key+".required", STR_REQUIRED, STR_NULL)
 				continue
 			}
 
-			this.AddErrorMsg(key, "null", "null")
+			this.AddErrorMsg(key, STR_NULL, STR_NULL)
 
 			continue
 		}
@@ -193,11 +207,11 @@ func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
 	method = strings.ToLower(method)
 
 	errMsg := ""
-	errStr, ok := ruleErrorMsgMap["undefine"]
+	errStr, ok := ruleErrorMsgMap[STR_UNDEFINE]
 
 	if ok {
 		errMsg = reflect.ValueOf(errStr).String()
-		errMsg = strings.Replace(errMsg, ":func", method, -1)
+		errMsg = strings.Replace(errMsg, ERR_ATTR_FUNC, method, -1)
 	} else {
 		errMsg = "The func " + method + "() is not defined."
 	}
@@ -223,13 +237,13 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
 
 	if exits {
 		errMsg = reflect.ValueOf(errStr).String()
-		errMsg = strings.Replace(errMsg, ":attribute", filedStr, -1)
-		errMsg = strings.Replace(errMsg, ":value", valStr, -1)
+		errMsg = strings.Replace(errMsg, ERR_ATTR_ATTRIBUTE, filedStr, -1)
+		errMsg = strings.Replace(errMsg, ERR_ATTR_VALUE, valStr, -1)
 	} else {
-		defalutStr, ok := ruleErrorMsgMap["defalut"]
+		defalutStr, ok := ruleErrorMsgMap[STR_DEFALUT]
 		if ok {
 			errMsg = reflect.ValueOf(defalutStr).String()
-			errMsg = strings.Replace(errMsg, ":attribute", filedStr, -1)
+			errMsg = strings.Replace(errMsg, ERR_ATTR_ATTRIBUTE, filedStr, -1)
 		} else {
 			errMsg = "The " + filedStr + " is invalid."
 		}
@@ -245,7 +259,7 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
 
 func (this *Validator) ContainRequired(sRule string) bool {
 	str := string([]rune(sRule))
-	pos := strings.Index(str, "required")
+	pos := strings.Index(str, STR_REQUIRED)
 	if pos != -1 {
 		return true
 	}
@@ -255,7 +269,7 @@ func (this *Validator) ContainRequired(sRule string) bool {
 
 func (this *Validator) ContainSometimes(sRule string) bool {
 	str := string([]rune(sRule))
-	pos := strings.Index(str, "sometimes")
+	pos := strings.Index(str, STR_SOMETIMES)
 
 	if pos != -1 {
 		return true
