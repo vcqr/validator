@@ -232,20 +232,20 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interfa
 	method = strings.ToLower(method)
 	filedStr := strings.Replace(keyStr, "."+method, "", -1)
 
-	asType := getType(reflect.ValueOf(filedType).String())
-
 	errMsg := ""
 	errStr, exits := ruleErrorMsgMap[method]
 
-	var msgIndex = "string"
-	switch errStr.(type) {
-	case string:
-		msgIndex = "string"
-	default:
-		msgIndex = "noString"
-	}
-
 	if exits {
+		asType := getType(reflect.ValueOf(filedType).String())
+
+		var msgIndex = "string"
+		switch errStr.(type) {
+		case string:
+			msgIndex = "string"
+		default:
+			msgIndex = "noString"
+		}
+
 		if msgIndex == "noString" {
 			tempMap := errStr.(map[string]string)
 			errMsg = tempMap[asType]
