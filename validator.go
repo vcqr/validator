@@ -127,7 +127,7 @@ func (this *Validator) doParse() {
 
 			// 检查传的值是否有效
 			if !fieldVal.IsValid() {
-				this.AddErrorMsg(key, strings.ToLower(method), STR_NULL)
+				this.AddErrorMsg(key, strings.ToLower(method), STR_NULL, fieldType)
 				continue
 			}
 
@@ -142,7 +142,7 @@ func (this *Validator) doParse() {
 				retArr := callMethod.Func.Call(params)
 				ret := retArr[0].Bool()
 				if ret == false {
-					this.AddErrorMsg(key, method, val)
+					this.AddErrorMsg(key, method, val, fieldType)
 				}
 			} else {
 				lowerMethod := strings.ToLower(method)
@@ -150,7 +150,7 @@ func (this *Validator) doParse() {
 				if isSet {
 					ret := defineFunc(reflect.ValueOf(val), reflect.ValueOf(fieldType), fieldVal)
 					if ret == false {
-						this.AddErrorMsg(key, lowerMethod, val)
+						this.AddErrorMsg(key, lowerMethod, val, fieldType)
 					}
 				} else {
 					this.AddFuncErrorMsg(key, lowerMethod)
@@ -185,11 +185,11 @@ func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[strin
 			}
 
 			if this.ContainRequired(tag[1]) {
-				this.AddErrorMsg(key+".required", STR_REQUIRED, STR_NULL)
+				this.AddErrorMsg(key+".required", STR_REQUIRED, STR_NULL, nil)
 				continue
 			}
 
-			this.AddErrorMsg(key, STR_NULL, STR_NULL)
+			this.AddErrorMsg(key, STR_NULL, STR_NULL, nil)
 
 			continue
 		}
@@ -224,7 +224,7 @@ func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
 	}
 }
 
-func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
+func (this *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interface{}) {
 	keyStr := reflect.ValueOf(fieldKey).String()
 	valStr := reflect.ValueOf(value).String()
 	method := reflect.ValueOf(attribute).String()
@@ -232,11 +232,27 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value interface{}) {
 	method = strings.ToLower(method)
 	filedStr := strings.Replace(keyStr, "."+method, "", -1)
 
+	asType := getType(reflect.ValueOf(filedType).String())
+
 	errMsg := ""
 	errStr, exits := ruleErrorMsgMap[method]
 
+	var msgIndex = "string"
+	switch errStr.(type) {
+	case string:
+		msgIndex = "string"
+	default:
+		msgIndex = "noString"
+	}
+
 	if exits {
-		errMsg = reflect.ValueOf(errStr).String()
+		if msgIndex == "noString" {
+			tempMap := errStr.(map[string]string)
+			errMsg = tempMap[asType]
+		} else {
+			errMsg = reflect.ValueOf(errStr).String()
+		}
+
 		errMsg = strings.Replace(errMsg, ERR_ATTR_ATTRIBUTE, filedStr, -1)
 		errMsg = strings.Replace(errMsg, ERR_ATTR_VALUE, valStr, -1)
 	} else {
@@ -295,4 +311,20 @@ func Ucfirst(str string) string {
 	}
 
 	return upperStr
+}
+
+// 获取数据类型
+func getType(strType string) string {
+	var retType string
+
+	switch strType {
+	case "int", "uint", "byte", "uintptr", "rune", "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64":
+		retType = "numeric"
+	case "float32", "float64", "complex64", "complex128":
+		retType = "numeric"
+	default:
+		retType = strType
+	}
+
+	return retType
 }
