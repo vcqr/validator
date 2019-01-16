@@ -3,10 +3,15 @@ package govalidator
 import (
 	_ "fmt"
 	"net"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
+
+const maxURLRuneCount = 2083
+const minURLRuneCount = 3
 
 type Rules struct {
 }
@@ -41,6 +46,7 @@ func (this *Rules) Numeric(ruleVal, fieldType string, fieldVal reflect.Value) bo
 	return false
 }
 
+// 验证中的字段必须具有最大值,目前支持 字符串，数字， @todo 后期支持切片，数组
 func (this *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	compareStr := ""
 	if fieldType == "string" {
@@ -70,6 +76,7 @@ func (this *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return false
 }
 
+// 验证中的字段必须具有最大值,目前支持 字符串，数字， @todo 后期支持切片，数组
 func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	if fieldType == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
@@ -152,14 +159,61 @@ func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return true
 }
 
+// 验证字段是否是合法邮箱地址
 func (this *Rules) Email(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	if fieldType == "string" {
 		str := fieldVal.String()
-		if rxEmail.MatchString(str) {
-			return true
+
+		if this.IsNull(str) {
+			return false
 		}
-	} else {
-		return false
+
+		return rxEmail.MatchString(str)
+	}
+
+	return false
+}
+
+// 验证字段必须完全由字母构成
+func (this *Rules) Alpha(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	if fieldType == "string" {
+		str := fieldVal.String()
+
+		if this.IsNull(str) {
+			return false
+		}
+
+		return rxAlphanumeric.MatchString(str)
+	}
+
+	return false
+}
+
+// 验证字段可能包含字母、数字，以及破折号 ( - ) 和下划线 ( _ )
+func (this *Rules) Alpha_dash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	if fieldType == "string" {
+		str := fieldVal.String()
+
+		if this.IsNull(str) {
+			return false
+		}
+
+		return rxAlphaDash.MatchString(str)
+	}
+
+	return false
+}
+
+// 验证字段必须是完全是字母、数字
+func (this *Rules) Alpha_num(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	if fieldType == "string" {
+		str := fieldVal.String()
+
+		if this.IsNull(str) {
+			return false
+		}
+
+		return rxAlphanumeric.MatchString(str)
 	}
 
 	return false
@@ -178,6 +232,33 @@ func (this *Rules) Required(ruleVal, fieldType string, fieldVal reflect.Value) b
 
 func (this *Rules) Sometimes(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return true
+}
+
+func (this *Rules) IsURL(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	if fieldType == "string" {
+		return false
+	}
+
+	str := fieldVal.String()
+
+	if str == "" || utf8.RuneCountInString(str) >= maxURLRuneCount || len(str) <= minURLRuneCount || strings.HasPrefix(str, ".") {
+		return false
+	}
+	strTemp := str
+	if strings.Contains(str, ":") && !strings.Contains(str, "://") {
+		strTemp = "http://" + str
+	}
+	u, err := url.Parse(strTemp)
+	if err != nil {
+		return false
+	}
+	if strings.HasPrefix(u.Host, ".") {
+		return false
+	}
+	if u.Host == "" && (u.Path != "" && !strings.Contains(u.Path, ".")) {
+		return false
+	}
+	return rxURL.MatchString(str)
 }
 
 func (this *Rules) IsPort(ruleVal, fieldType string, fieldVal reflect.Value) bool {
