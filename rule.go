@@ -1,24 +1,30 @@
+// ***********************************************************************
+// 使用了下面链接中的部分代码，这里感谢原作者的辛苦付出
+// https://github.com/asaskevich/govalidator/blob/master/validator.go
+// ***********************************************************************
 package govalidator
 
 import (
 	_ "encoding/base64"
 	"encoding/json"
 	_ "encoding/pem"
-	"fmt"
+	_ "fmt"
 	"net"
-	_ "net/url"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
 
+// IE8的URL的最大URL长度是2083个字节, 其中路径部分（Path）最大长度是2048个字节
 const maxURLRuneCount = 2083
 const minURLRuneCount = 3
 
 type Rules struct {
 }
 
+// 实例化
 func NewRule() *Rules {
 
 	rule := &Rules{}
@@ -26,10 +32,12 @@ func NewRule() *Rules {
 	return rule
 }
 
+// 是否为空
 func (this *Rules) IsNull(str string) bool {
 	return len(str) == 0
 }
 
+// 获取字符串
 func (this *Rules) getStr(fieldType string, fieldVal reflect.Value) (string, bool) {
 	if fieldType != "string" {
 		return "", true
@@ -42,7 +50,7 @@ func (this *Rules) getStr(fieldType string, fieldVal reflect.Value) (string, boo
 	return str, false
 }
 
-// Numeric check if the string contains only numbers.
+// 验证字符串是否全部是数字
 func (this *Rules) Numeric(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -52,7 +60,7 @@ func (this *Rules) Numeric(ruleVal, fieldType string, fieldVal reflect.Value) bo
 	return rxNumeric.MatchString(str)
 }
 
-// 验证中的字段必须具有最大值,目前支持 字符串，数字， @todo 后期支持切片，数组
+// 验证数据是否在指定数据中
 func (this *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	compareStr := ""
 	if fieldType == "string" {
@@ -82,7 +90,7 @@ func (this *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return false
 }
 
-// 验证中的字段必须具有最大值,目前支持 字符串，数字， @todo 后期支持切片，数组
+// 验证数据不能小于指定的值
 func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	if fieldType == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
@@ -125,6 +133,7 @@ func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return true
 }
 
+// 验证数据不能大于指定的值,目前支持int，float，字符串则比较长度
 func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	if fieldType == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
@@ -229,30 +238,34 @@ func (this *Rules) Cn_Mobile(ruleVal, fieldType string, fieldVal reflect.Value) 
 }
 
 // 中国电话号码验证
-func (this *Rules) Cn_Phone(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func (this *Rules) Cn_Tel(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
 
-	return rxCnPhone.MatchString(str)
+	return rxCnTel.MatchString(str)
 
 }
 
+// 字段是否必须，目前支持字符串
 func (this *Rules) Required(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	_, err := this.getStr(fieldType, fieldVal)
-	if err {
-		return false
+	if fieldType == "string" {
+		str := fieldVal.String()
+		if this.IsNull(str) {
+			return false
+		}
 	}
 
 	return true
 }
 
+// 字段不是必须
 func (this *Rules) Sometimes(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return true
 }
 
-// IsHexadecimal check if the string is a hexadecimal number.
+// 验证是否是合法的16进制数据.
 func (this *Rules) IsHexadecimal(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -263,7 +276,7 @@ func (this *Rules) IsHexadecimal(ruleVal, fieldType string, fieldVal reflect.Val
 
 }
 
-// IsHexcolor check if the string is a hexadecimal color.
+// 验证是否是合法的16进制色值
 func (this *Rules) IsHexcolor(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -273,7 +286,7 @@ func (this *Rules) IsHexcolor(ruleVal, fieldType string, fieldVal reflect.Value)
 	return rxHexcolor.MatchString(str)
 }
 
-// IsRGBcolor check if the string is a valid RGB color in form rgb(RRR, GGG, BBB).
+// 验证是否是合法的rgb(RRR, GGG, BBB)色值
 func (this *Rules) IsRGBcolor(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -283,7 +296,7 @@ func (this *Rules) IsRGBcolor(ruleVal, fieldType string, fieldVal reflect.Value)
 	return rxRGBcolor.MatchString(str)
 }
 
-// IsLowerCase check if the string is lowercase.
+// 验证是否是全小写字符串
 func (this *Rules) IsLowerCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -293,7 +306,7 @@ func (this *Rules) IsLowerCase(ruleVal, fieldType string, fieldVal reflect.Value
 	return str == strings.ToLower(str)
 }
 
-// IsUpperCase check if the string is uppercase.
+// 验证是否是全大写字符串
 func (this *Rules) IsUpperCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -323,7 +336,7 @@ func (this *Rules) HasUpperCase(ruleVal, fieldType string, fieldVal reflect.Valu
 	return rxHasUpperCase.MatchString(str)
 }
 
-// IsInt check if the string is an integer.
+// 验证字符串是否是合法的有符号整型数据
 func (this *Rules) IsInt(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -333,7 +346,7 @@ func (this *Rules) IsInt(ruleVal, fieldType string, fieldVal reflect.Value) bool
 	return rxInt.MatchString(str)
 }
 
-// IsFloat check if the string is a float.
+// 验证字符串是否是合法的有符号浮点型数据
 func (this *Rules) IsFloat(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -343,7 +356,7 @@ func (this *Rules) IsFloat(ruleVal, fieldType string, fieldVal reflect.Value) bo
 	return str != "" && rxFloat.MatchString(str)
 }
 
-// IsJSON check if the string is valid JSON (note: uses json.Unmarshal).
+// 验证是否是合法的Json数据 (注: 使用了 json.Unmarshal).
 func (this *Rules) IsJSON(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -354,7 +367,7 @@ func (this *Rules) IsJSON(ruleVal, fieldType string, fieldVal reflect.Value) boo
 	return json.Unmarshal([]byte(str), &js) == nil
 }
 
-// IsMultibyte check if the string contains one or more multibyte chars. Empty string is valid.
+// IsMultibyte check if the string contains one or more multibyte chars
 func (this *Rules) IsMultibyte(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -364,7 +377,7 @@ func (this *Rules) IsMultibyte(ruleVal, fieldType string, fieldVal reflect.Value
 	return rxMultibyte.MatchString(str)
 }
 
-// IsASCII check if the string contains ASCII chars only. Empty string is valid.
+// IsASCII check if the string contains ASCII chars only.
 func (this *Rules) IsASCII(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -462,47 +475,99 @@ func (this *Rules) IsDataURI(ruleVal, fieldType string, fieldVal reflect.Value) 
 
 // IsISO3166Alpha2 checks if a string is valid two-letter country code
 func (this *Rules) IsISO3166Alpha2(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	_, err := this.getStr(fieldType, fieldVal)
+	str, err := this.getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
 
-	//	for _, entry := range ISO3166List {
-	//		if str == entry.Alpha2Code {
-	//			return true
-	//		}
-	//	}
+	for _, entry := range ISO3166List {
+		if str == entry.Alpha2Code {
+			return true
+		}
+	}
+
 	return false
 }
 
 // IsISO3166Alpha3 checks if a string is valid three-letter country code
 func (this *Rules) IsISO3166Alpha3(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	//	for _, entry := range ISO3166List {
-	//		if str == entry.Alpha3Code {
-	//			return true
-	//		}
-	//	}
+	str, err := this.getStr(fieldType, fieldVal)
+	if err {
+		return false
+	}
+
+	for _, entry := range ISO3166List {
+		if str == entry.Alpha3Code {
+			return true
+		}
+	}
+
 	return false
 }
 
 // IsISO693Alpha2 checks if a string is valid two-letter language code
 func (this *Rules) IsISO693Alpha2(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	//	for _, entry := range ISO693List {
-	//		if str == entry.Alpha2Code {
-	//			return true
-	//		}
-	//	}
+	str, err := this.getStr(fieldType, fieldVal)
+	if err {
+		return false
+	}
+
+	for _, entry := range ISO693List {
+		if str == entry.Alpha2Code {
+			return true
+		}
+	}
+
 	return false
 }
 
 // IsISO693Alpha3b checks if a string is valid three-letter language code
 func (this *Rules) IsISO693Alpha3b(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	//	for _, entry := range ISO693List {
-	//		if str == entry.Alpha3bCode {
-	//			return true
-	//		}
-	//	}
+	str, err := this.getStr(fieldType, fieldVal)
+	if err {
+		return false
+	}
+
+	for _, entry := range ISO693List {
+		if str == entry.Alpha3bCode {
+			return true
+		}
+	}
+
 	return false
+}
+
+// 验证是否是合法的指定加密算法生成的串
+// ruleVal 必须是后面数组其中的一个 ['md4', 'md5', 'sha1', 'sha256', 'sha384', 'sha512', 'ripemd128', 'ripemd160', 'tiger128', 'tiger160', 'tiger192', 'crc32', 'crc32b']
+func (this *Rules) IsHash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := this.getStr(fieldType, fieldVal)
+	if err {
+		return false
+	}
+
+	len := "0"
+	algo := strings.ToLower(ruleVal) //指定算法
+
+	if algo == "crc32" || algo == "crc32b" {
+		len = "8"
+	} else if algo == "md5" || algo == "md4" || algo == "ripemd128" || algo == "tiger128" {
+		len = "32"
+	} else if algo == "sha1" || algo == "ripemd160" || algo == "tiger160" {
+		len = "40"
+	} else if algo == "tiger192" {
+		len = "48"
+	} else if algo == "sha256" {
+		len = "64"
+	} else if algo == "sha384" {
+		len = "96"
+	} else if algo == "sha512" {
+		len = "128"
+	} else {
+		return false
+	}
+
+	return Matches(str, "^[a-f0-9]{"+len+"}$")
+
 }
 
 // IsDNSName will validate the given string as a DNS name
@@ -512,42 +577,15 @@ func (this *Rules) IsDNSName(ruleVal, fieldType string, fieldVal reflect.Value) 
 		return false
 	}
 
-	if str == "" || len(strings.Replace(str, ".", "", -1)) > 255 {
+	if len(strings.Replace(str, ".", "", -1)) > 255 {
 		// constraints already violated
 		return false
 	}
-	//	return !this.IsIP(ruleVal, fieldType, reflect.ValueOf(str)) && rxDNSName.MatchString(str)
-	return rxDNSName.MatchString(str)
+
+	return !this.IsIP(ruleVal, fieldType, reflect.ValueOf(str)) && rxDNSName.MatchString(str)
 }
 
-// IsHash checks if a string is a hash of type algorithm.
-// Algorithm is one of ['md4', 'md5', 'sha1', 'sha256', 'sha384', 'sha512', 'ripemd128', 'ripemd160', 'tiger128', 'tiger160', 'tiger192', 'crc32', 'crc32b']
-func (this *Rules) IsHash(str string, algorithm string) bool {
-	//	len := "0"
-	//	algo := strings.ToLower(algorithm)
-	//
-	//	if algo == "crc32" || algo == "crc32b" {
-	//		len = "8"
-	//	} else if algo == "md5" || algo == "md4" || algo == "ripemd128" || algo == "tiger128" {
-	//		len = "32"
-	//	} else if algo == "sha1" || algo == "ripemd160" || algo == "tiger160" {
-	//		len = "40"
-	//	} else if algo == "tiger192" {
-	//		len = "48"
-	//	} else if algo == "sha256" {
-	//		len = "64"
-	//	} else if algo == "sha384" {
-	//		len = "96"
-	//	} else if algo == "sha512" {
-	//		len = "128"
-	//	} else {
-	//		return false
-	//	}
-
-	//return Matches(str, "^[a-f0-9]{"+len+"}$")
-	return false
-}
-
+// 验证是否是合法的Url
 func (this *Rules) IsURL(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -559,23 +597,36 @@ func (this *Rules) IsURL(ruleVal, fieldType string, fieldVal reflect.Value) bool
 	}
 
 	strTemp := str
-	fmt.Println(strTemp)
+
 	if strings.Contains(str, ":") && !strings.Contains(str, "://") {
 		strTemp = "http://" + str
 	}
-	//	u, err := url.Parse(strTemp)
-	//	if err != nil {
-	//		return false
-	//	}
-	//	if strings.HasPrefix(u.Host, ".") {
-	//		return false
-	//	}
-	//	if u.Host == "" && (u.Path != "" && !strings.Contains(u.Path, ".")) {
-	//		return false
-	//	}
+
+	u, _ := url.Parse(strTemp)
+	if u == nil {
+		return false
+	}
+	if strings.HasPrefix(u.Host, ".") {
+		return false
+	}
+	if u.Host == "" && (u.Path != "" && !strings.Contains(u.Path, ".")) {
+		return false
+	}
+
 	return rxURL.MatchString(str)
 }
 
+// 验证是否是合法的ip地址
+func (this *Rules) IsIP(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := this.getStr(fieldType, fieldVal)
+	if err {
+		return false
+	}
+
+	return net.ParseIP(str) != nil
+}
+
+// 验证是否是合法的端口
 func (this *Rules) IsPort(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	var port int64 = 0
 	if fieldType == "string" {
@@ -603,6 +654,7 @@ func (this *Rules) IsPort(ruleVal, fieldType string, fieldVal reflect.Value) boo
 	return false
 }
 
+// 验证是否是合法的ipv4地址
 func (this *Rules) IsIPv4(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -614,6 +666,7 @@ func (this *Rules) IsIPv4(ruleVal, fieldType string, fieldVal reflect.Value) boo
 	return ip != nil && strings.Contains(str, ".")
 }
 
+// 验证是否是合法的ipv6地址
 func (this *Rules) IsIPv6(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
@@ -625,24 +678,31 @@ func (this *Rules) IsIPv6(ruleVal, fieldType string, fieldVal reflect.Value) boo
 	return ip != nil && strings.Contains(str, ".")
 }
 
+// 验证是否是合法的host地址
+func (this *Rules) IsHost(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	return this.IsIP(ruleVal, fieldType, fieldVal) || this.IsDNSName(ruleVal, fieldType, fieldVal)
+}
+
+// 验证是否是合法的mac地址
 func (this *Rules) IsMAC(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	_, err := this.getStr(fieldType, fieldVal)
+	str, err := this.getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
 
-	// _, err := net.ParseMAC(str)
-	//	return err == nil
-	return false
+	m, _ := net.ParseMAC(str)
+
+	return m != nil
 }
 
+// 验证是否是合法的SSN
 func (this *Rules) IsSSN(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	str, err := this.getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
 
-	if str == "" || len(str) != 11 {
+	if len(str) != 11 {
 		return false
 	}
 
