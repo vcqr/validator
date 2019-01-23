@@ -1,4 +1,4 @@
-package govalidator
+package validator
 
 var ruleErrorMsgMap = map[string]interface{}{
 	"defalut":  "The :attribute is invalid.",                // 默认信息

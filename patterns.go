@@ -2,7 +2,7 @@
 // 使用了下面链接中的代码，这里感谢原开发者的辛苦付出
 // https://github.com/asaskevich/govalidator/blob/master/patterns.go
 // ***********************************************************************
-package govalidator
+package validator
 
 import "regexp"
 

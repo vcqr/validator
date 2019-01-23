@@ -2,7 +2,7 @@
 // 使用了下面链接中的部分代码，这里感谢原作者的辛苦付出
 // https://github.com/asaskevich/govalidator/blob/master/validator.go
 // ***********************************************************************
-package govalidator
+package validator
 
 import (
 	_ "encoding/base64"

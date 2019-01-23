@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
-	"validate/govalidator"
+	"validate/validator"
 )
 
 type User struct {
@@ -21,7 +21,7 @@ type User struct {
 func main() {
 	u := User{12, "a", 26, 1, "127.0.0.1", "https://a.com", "32112319000101100x", "19956785678", "021-60123456"}
 
-	validator := govalidator.New()
+	validator := validator.New()
 
 	validator.TagMap["ceshi"] = func(args ...reflect.Value) bool {
 		fmt.Println(args)
