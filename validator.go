@@ -6,18 +6,17 @@ import (
 	"strings"
 )
 
-//
 const (
-	STR_NULL      string = "null"
-	STR_REQUIRED  string = "required"
-	STR_UNDEFINE  string = "undefine"
-	STR_SOMETIMES string = "sometimes"
-	STR_DEFALUT   string = "defalut"
-	STR_VALIDATE  string = "validate"
+	STR_NULL      string = "null"      // 空字符串
+	STR_REQUIRED  string = "required"  // 必须字符串
+	STR_UNDEFINE  string = "undefine"  // 未定义字符串
+	STR_SOMETIMES string = "sometimes" // 存在时字符串
+	STR_DEFALUT   string = "defalut"   // 默认字符串
+	STR_VALIDATE  string = "validate"  // Tag验证关键字
 
-	ERR_ATTR_FUNC      string = ":func"
-	ERR_ATTR_ATTRIBUTE string = ":attribute"
-	ERR_ATTR_VALUE     string = ":value"
+	ERR_ATTR_FUNC      string = ":func"      // 函数占位符
+	ERR_ATTR_ATTRIBUTE string = ":attribute" // 属性字段占位符
+	ERR_ATTR_VALUE     string = ":value"     // 值占位符
 )
 
 var (
@@ -42,6 +41,7 @@ type Validator struct {
 	ErrorMsg map[string]string
 }
 
+// 实例化验证器
 func New() *Validator {
 	validator := &Validator{true, make(map[string]func(...reflect.Value) bool), make(map[string]string)}
 
@@ -52,19 +52,22 @@ func New() *Validator {
 	return validator
 }
 
-func (this *Validator) Struct(obj interface{}) {
+// 结构体验证
+func (this *Validator) Struct(obj interface{}) *Validator {
 	objT := reflect.TypeOf(obj)
 	objV := reflect.ValueOf(obj)
 
 	this.parseData(objT, objV)
 
-	this.doParse()
+	return this
 }
 
+// 执行验证
 func (this *Validator) Validate() {
 	this.doParse()
 }
 
+// 数据解析处理
 func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 
 	objName := objT.Name()
@@ -83,6 +86,7 @@ func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 	}
 }
 
+// 解析规则，把字符串通过分隔符转换成规则map
 func (this *Validator) parseRule(ruleKey string, rules string) {
 	if rules == "" || len(rules) <= 0 {
 		panic("rule error: Missing validation rules.")
@@ -102,6 +106,7 @@ func (this *Validator) parseRule(ruleKey string, rules string) {
 			tempKey = rule
 		}
 
+		// 去除相关空白字符
 		tempKey = strings.TrimSpace(tempKey)
 		val = strings.TrimSpace(val)
 
@@ -109,6 +114,8 @@ func (this *Validator) parseRule(ruleKey string, rules string) {
 	}
 }
 
+// 执行解析
+// 解析优先使用rule中的相关方法，如果不存在看是否存在用户自定义的方法，如果都没有则返回false，并添加到相关的错误中
 func (this *Validator) doParse() {
 	if ruleMap != nil && typeMap != nil {
 		rule := NewRule()
@@ -134,20 +141,36 @@ func (this *Validator) doParse() {
 			callMethod, exist := rT.MethodByName(method)
 
 			if exist {
+				// 固定参数
 				params := make([]reflect.Value, 4)
+
+				// 指定使用的验证规则，参数是方法名
 				params[0] = reflect.ValueOf(rule)
+
+				// 指定验证规则内容
 				params[1] = reflect.ValueOf(val)
+
+				// 数据类型，字符串
 				params[2] = reflect.ValueOf(fieldType)
+
+				// 待验证的数据
 				params[3] = reflect.ValueOf(fieldVal)
+
+				// 通过反射调用已封装好的验证方法
 				retArr := callMethod.Func.Call(params)
 				ret := retArr[0].Bool()
 				if ret == false {
 					this.AddErrorMsg(key, method, val, fieldType)
 				}
 			} else {
+				// 方法名统一转化为小写
 				lowerMethod := strings.ToLower(method)
 				defineFunc, isSet := this.TagMap[lowerMethod]
 				if isSet {
+					// 执行用户自定义的验证方法,
+					// 第一个参数验证规则具体内容
+					// 第二个参数字段数据类型
+					// 第三个参数待验证的数据
 					ret := defineFunc(reflect.ValueOf(val), reflect.ValueOf(fieldType), fieldVal)
 					if ret == false {
 						this.AddErrorMsg(key, lowerMethod, val, fieldType)
@@ -160,6 +183,7 @@ func (this *Validator) doParse() {
 	}
 }
 
+// 逐条添加指定的验证规则
 func (this *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal interface{}) *Validator {
 	typeMap[fieldKey+".type"] = fieldType
 	dataMap[fieldKey+".val"] = reflect.ValueOf(dataVal)
@@ -169,6 +193,7 @@ func (this *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal inte
 	return this
 }
 
+// 批量通过map添加指定验证规则
 func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[string]interface{}) *Validator {
 	for key, tag := range ruleMap {
 		if len(tag) < 2 {
@@ -200,6 +225,7 @@ func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[strin
 	return this
 }
 
+// 添加未定义func错误信息
 func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
 	keyStr := reflect.ValueOf(fieldKey).String()
 	method := reflect.ValueOf(attribute).String()
@@ -224,6 +250,7 @@ func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
 	}
 }
 
+// 添加错误信息到error map中
 func (this *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interface{}) {
 	keyStr := reflect.ValueOf(fieldKey).String()
 	valStr := reflect.ValueOf(value).String()
@@ -273,6 +300,7 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interfa
 	}
 }
 
+// 验证规则是否包含required
 func (this *Validator) ContainRequired(sRule string) bool {
 	str := string([]rune(sRule))
 	pos := strings.Index(str, STR_REQUIRED)
@@ -283,6 +311,7 @@ func (this *Validator) ContainRequired(sRule string) bool {
 	return false
 }
 
+// 验证规则是否包含sometimes
 func (this *Validator) ContainSometimes(sRule string) bool {
 	str := string([]rune(sRule))
 	pos := strings.Index(str, STR_SOMETIMES)
@@ -294,37 +323,8 @@ func (this *Validator) ContainSometimes(sRule string) bool {
 	return false
 }
 
-func Ucfirst(str string) string {
-	var upperStr string
-	tempStr := []rune(str)
-	for i := 0; i < len(tempStr); i++ {
-		if i == 0 {
-			if tempStr[i] >= 97 && tempStr[i] <= 122 {
-				tempStr[i] -= 32 // 大小写差值32
-				upperStr += string(tempStr[i])
-			} else {
-				return str
-			}
-		} else {
-			upperStr += string(tempStr[i])
-		}
-	}
-
-	return upperStr
-}
-
-// 获取数据类型
-func getType(strType string) string {
-	var retType string
-
-	switch strType {
-	case "int", "uint", "byte", "uintptr", "rune", "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64":
-		retType = "numeric"
-	case "float32", "float64", "complex64", "complex128":
-		retType = "numeric"
-	default:
-		retType = strType
-	}
-
-	return retType
+// 清除错误信息
+func (this *Validator) ClearError() {
+	this.Fails = true
+	this.ErrorMsg = make(map[string]string)
 }
