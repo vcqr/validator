@@ -263,7 +263,7 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interfa
 	errStr, exits := ruleErrorMsgMap[method]
 
 	if exits {
-		asType := getType(reflect.ValueOf(filedType).String())
+		asType := getTypeMapping(reflect.ValueOf(filedType).String())
 
 		var msgIndex = "string"
 		switch errStr.(type) {
@@ -323,8 +323,12 @@ func (this *Validator) ContainSometimes(sRule string) bool {
 	return false
 }
 
-// 清除错误信息
+// 清除验证
 func (this *Validator) ClearError() {
 	this.Fails = true
 	this.ErrorMsg = make(map[string]string)
+
+	ruleMap = make(map[string]interface{})
+	typeMap = make(map[string]interface{})
+	dataMap = make(map[string]interface{})
 }
