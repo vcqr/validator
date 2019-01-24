@@ -19,7 +19,7 @@ type User struct {
 }
 
 func main() {
-	u := User{12, "a", 26, 1, "127.0.0.1", "https://a.com", "32112319000101100x", "19956785678", "021-60123456"}
+	u := User{12, "d", 26, 1, "127.0.0.1", "https://a.com", "32112319000101100x", "19956785678", "021-60123456"}
 
 	validator := validator.New()
 
@@ -36,12 +36,14 @@ func main() {
 		"Name":  []string{"string", "required|min:10"},
 		"Email": []string{"string", "required|Email"},
 		"From":  []string{"string", "sometimes|in:cn,us,uk,tk,tw"},
+		"Age":   []string{"int", "range:1,150"},
 	}
 
 	dataMap := map[string]interface{}{
 		"Id":    1,
-		"Name":  "zhangsan",
+		"Name":  "zhangsan-123",
 		"Email": "www@www.com",
+		"Age":   100,
 	}
 
 	validator.Struct(u).Validate()
