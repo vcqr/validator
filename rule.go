@@ -60,15 +60,90 @@ func (this *Rules) Numeric(ruleVal, fieldType string, fieldVal reflect.Value) bo
 	return rxNumeric.MatchString(str)
 }
 
+// 验证大小必须在给定的 min 和 max 之间。字符串、数字、数组和文件的计算方式都使用 len 方法
+// rule exp "range:min,max"
+func (this *Rules) Range(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	//包含分隔符
+	pos := strings.IndexAny(ruleVal, ",")
+	if pos == -1 {
+		return false
+	}
+
+	//分割为数组，并校验长度是否为2
+	strArr := strings.Split(ruleVal, ",")
+	if len(strArr) != 2 {
+		return false
+	}
+
+	typeStr := getTypeMapping(fieldType)
+	if typeStr == "string" { // 字符串比较长度
+		min, min_err := strconv.Atoi(strArr[0])
+		max, max_err := strconv.Atoi(strArr[1])
+		if min_err != nil || max_err != nil {
+			return false
+		}
+
+		str := fieldVal.String()
+		tempStr := string([]rune(str))
+		length := len(tempStr)
+
+		if length < min || length > max {
+			return false
+		}
+	} else if typeStr == "float" {
+		min, min_err := strconv.ParseFloat(strArr[0], 64)
+		max, max_err := strconv.ParseFloat(strArr[1], 64)
+		if min_err != nil || max_err != nil {
+			return false
+		}
+
+		dataVal := float64(fieldVal.Float())
+
+		if dataVal < min || dataVal > max {
+			return false
+		}
+	} else if typeStr == "int" {
+		min, min_err := strconv.ParseInt(strArr[0], 10, 64)
+		max, max_err := strconv.ParseInt(strArr[1], 10, 64)
+		if min_err != nil || max_err != nil {
+			return false
+		}
+
+		dataVal := fieldVal.Int()
+
+		if dataVal < min || dataVal > max {
+			return false
+		}
+	} else if typeStr == "array" || typeStr == "map" || typeStr == "chan" { // Array, Slice, Map, Chan
+		min, min_err := strconv.Atoi(strArr[0])
+		max, max_err := strconv.Atoi(strArr[1])
+		if min_err != nil || max_err != nil {
+			return false
+		}
+
+		length := fieldVal.Len()
+
+		if length < min || length > max {
+			return false
+		}
+	} else {
+		return false
+	}
+
+	return true
+}
+
 // 验证数据是否在指定数据中
 func (this *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	typeStr := getTypeMapping(fieldType)
+
 	compareStr := ""
-	if fieldType == "string" {
+	if typeStr == "string" {
 		compareStr = fieldVal.String()
-	} else if fieldType == "int" {
+	} else if typeStr == "int" {
 		iVal := fieldVal.Int()
 		compareStr = strconv.FormatInt(iVal, 10)
-	} else if fieldType == "float64" {
+	} else if typeStr == "float" {
 		fVal := fieldVal.Float()
 		compareStr = strconv.FormatFloat(fVal, 'f', -1, 64)
 	} else {
@@ -90,9 +165,10 @@ func (this *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return false
 }
 
-// 验证数据不能小于指定的值
+// 验证数据不能小于指定的值, Array, Chan, Map, Slice类型比较长度
 func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	if fieldType == "string" { // 字符串比较长度
+	typeStr := getTypeMapping(fieldType)
+	if typeStr == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
 		if err != nil {
 			return false
@@ -104,7 +180,7 @@ func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		if len(tempStr) < val {
 			return false
 		}
-	} else if fieldType == "float64" { // 浮点
+	} else if typeStr == "float" { // 浮点
 		val, err := strconv.ParseFloat(ruleVal, 64)
 		if err != nil {
 			return false
@@ -115,9 +191,7 @@ func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		if fVal < float64(val) {
 			return false
 		}
-	} else if fieldType == "" {
-
-	} else { // 其他默认整型
+	} else if typeStr == "int" { //整型
 		val, err := strconv.ParseInt(ruleVal, 10, 64)
 		if err != nil {
 			return false
@@ -128,14 +202,28 @@ func (this *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		if iVal < val {
 			return false
 		}
+	} else if typeStr == "array" || typeStr == "map" || typeStr == "chan" { // Array, Slice, Map, Chan
+		val, err := strconv.Atoi(ruleVal)
+		if err != nil {
+			return false
+		}
+
+		length := fieldVal.Len()
+
+		if length < val {
+			return false
+		}
+	} else {
+		return false
 	}
 
 	return true
 }
 
-// 验证数据不能大于指定的值,目前支持int，float，字符串则比较长度
+// 验证数据不能大于指定的值, Array, Chan, Map, Slice类型比较长度
 func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	if fieldType == "string" { // 字符串比较长度
+	typeStr := getTypeMapping(fieldType)
+	if typeStr == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
 		if err != nil {
 			return false
@@ -147,7 +235,7 @@ func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		if len(tempStr) > val {
 			return false
 		}
-	} else if fieldType == "float64" { // 浮点
+	} else if typeStr == "float" { // 浮点
 		val, err := strconv.ParseFloat(ruleVal, 64)
 		if err != nil {
 			return false
@@ -158,7 +246,7 @@ func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		if fVal > float64(val) {
 			return false
 		}
-	} else { // 其他默认整型
+	} else if typeStr == "int" { // 其他默认整型
 		val, err := strconv.ParseInt(ruleVal, 10, 64)
 		if err != nil {
 			return false
@@ -169,6 +257,19 @@ func (this *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		if iVal > val {
 			return false
 		}
+	} else if typeStr == "array" || typeStr == "map" || typeStr == "chan" { // Array, Slice, Map, Chan统一取长度
+		val, err := strconv.Atoi(ruleVal)
+		if err != nil {
+			return false
+		}
+
+		length := fieldVal.Len()
+
+		if length > val {
+			return false
+		}
+	} else {
+		return false
 	}
 
 	return true
