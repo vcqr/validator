@@ -1,7 +1,7 @@
 package validator
 
 var ruleErrorMsgMap = map[string]interface{}{
-	"defalut":  "The :attribute is invalid.",                // 默认信息
+	"default":  "The :attribute is invalid.",                // 默认信息
 	"undefine": "The func :func() is not defined.",          // 验证方法没有定义
 	"null":     "The :attribute field value does not exist", // 字段值不存在
 
@@ -10,8 +10,8 @@ var ruleErrorMsgMap = map[string]interface{}{
 	"after":           "The :attribute must be a date after :date.",
 	"after_or_equal":  "The :attribute must be a date after or equal to :date.",
 	"alpha":           "The :attribute may only contain letters.",
-	"alpha_dash":      "The :attribute may only contain letters, numbers, dashes and underscores.",
-	"alpha_num":       "The :attribute may only contain letters and numbers.",
+	"alphadash":       "The :attribute may only contain letters, numbers, dashes and underscores.",
+	"alphanum":        "The :attribute may only contain letters and numbers.",
 	"array":           "The :attribute must be an array.",
 	"before":          "The :attribute must be a date before :date.",
 	"before_or_equal": "The :attribute must be a date before or equal to :date.",

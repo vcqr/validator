@@ -11,8 +11,8 @@ const (
 	STR_REQUIRED  string = "required"  // 必须字符串
 	STR_UNDEFINE  string = "undefine"  // 未定义字符串
 	STR_SOMETIMES string = "sometimes" // 存在时字符串
-	STR_DEFALUT   string = "defalut"   // 默认字符串
-	STR_VALIDATE  string = "validate"  // Tag验证关键字
+	STR_DEFAULT   string = "default"   // 默认字符串
+	STR_VALID     string = "valid"     // Tag验证关键字
 
 	ERR_ATTR_FUNC      string = ":func"      // 函数占位符
 	ERR_ATTR_ATTRIBUTE string = ":attribute" // 属性字段占位符
@@ -41,9 +41,13 @@ type Validator struct {
 	ErrorMsg map[string]string
 }
 
-// 实例化验证器
+// New 实例化验证器
 func New() *Validator {
-	validator := &Validator{true, make(map[string]func(...reflect.Value) bool), make(map[string]string)}
+	validator := &Validator{
+		Fails:    true,
+		TagMap:   make(map[string]func(...reflect.Value) bool),
+		ErrorMsg: make(map[string]string),
+	}
 
 	ruleMap = make(map[string]interface{})
 	typeMap = make(map[string]interface{})
@@ -52,42 +56,40 @@ func New() *Validator {
 	return validator
 }
 
-// 结构体验证
-func (this *Validator) Struct(obj interface{}) *Validator {
+// Struct 结构体验证
+func (v *Validator) Struct(obj interface{}) *Validator {
 	objT := reflect.TypeOf(obj)
 	objV := reflect.ValueOf(obj)
 
-	this.parseData(objT, objV)
+	v.parseData(objT, objV)
 
-	return this
+	return v
 }
 
-// 执行验证
-func (this *Validator) Validate() {
-	this.doParse()
+// Validate 执行验证
+func (v *Validator) Validate() {
+	v.doParse()
 }
 
 // 数据解析处理
-func (this *Validator) parseData(objT reflect.Type, objV reflect.Value) {
-
+func (v *Validator) parseData(objT reflect.Type, objV reflect.Value) {
 	objName := objT.Name()
 
 	for i := 0; i < objT.NumField(); i++ {
-		var ruleKey = ""
-		ruleKey = objName + "." + objT.Field(i).Name
+		ruleKey := objName + "." + objT.Field(i).Name
 
-		ruleVal := objT.Field(i).Tag.Get(STR_VALIDATE)
+		ruleVal := objT.Field(i).Tag.Get(STR_VALID)
 		ruleVal = strings.TrimSpace(ruleVal)
 
 		typeMap[ruleKey+".type"] = objT.Field(i).Type.Kind().String()
 		dataMap[ruleKey+".val"] = objV.Field(i)
 
-		this.parseRule(ruleKey, ruleVal)
+		v.parseRule(ruleKey, ruleVal)
 	}
 }
 
 // 解析规则，把字符串通过分隔符转换成规则map
-func (this *Validator) parseRule(ruleKey string, rules string) {
+func (v *Validator) parseRule(ruleKey string, rules string) {
 	if rules == "" || len(rules) <= 0 {
 		panic("rule error: Missing validation rules.")
 	}
@@ -116,7 +118,7 @@ func (this *Validator) parseRule(ruleKey string, rules string) {
 
 // 执行解析
 // 解析优先使用rule中的相关方法，如果不存在看是否存在用户自定义的方法，如果都没有则返回false，并添加到相关的错误中
-func (this *Validator) doParse() {
+func (v *Validator) doParse() {
 	if ruleMap != nil && typeMap != nil {
 		rule := NewRule()
 		rT := reflect.TypeOf(rule)
@@ -134,7 +136,7 @@ func (this *Validator) doParse() {
 
 			// 检查传的值是否有效
 			if !fieldVal.IsValid() {
-				this.AddErrorMsg(key, strings.ToLower(method), STR_NULL, fieldType)
+				v.AddErrorMsg(key, strings.ToLower(method), STR_NULL, fieldType)
 				continue
 			}
 
@@ -160,12 +162,12 @@ func (this *Validator) doParse() {
 				retArr := callMethod.Func.Call(params)
 				ret := retArr[0].Bool()
 				if ret == false {
-					this.AddErrorMsg(key, method, val, fieldType)
+					v.AddErrorMsg(key, method, val, fieldType)
 				}
 			} else {
 				// 方法名统一转化为小写
 				lowerMethod := strings.ToLower(method)
-				defineFunc, isSet := this.TagMap[lowerMethod]
+				defineFunc, isSet := v.TagMap[lowerMethod]
 				if isSet {
 					// 执行用户自定义的验证方法,
 					// 第一个参数验证规则具体内容
@@ -173,28 +175,28 @@ func (this *Validator) doParse() {
 					// 第三个参数待验证的数据
 					ret := defineFunc(reflect.ValueOf(val), reflect.ValueOf(fieldType), fieldVal)
 					if ret == false {
-						this.AddErrorMsg(key, lowerMethod, val, fieldType)
+						v.AddErrorMsg(key, lowerMethod, val, fieldType)
 					}
 				} else {
-					this.AddFuncErrorMsg(key, lowerMethod)
+					v.AddFuncErrorMsg(key, lowerMethod)
 				}
 			}
 		}
 	}
 }
 
-// 逐条添加指定的验证规则
-func (this *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal interface{}) *Validator {
+// AddRule 逐条添加指定的验证规则
+func (v *Validator) AddRule(fieldKey, fieldType, ruleStr string, dataVal interface{}) *Validator {
 	typeMap[fieldKey+".type"] = fieldType
 	dataMap[fieldKey+".val"] = reflect.ValueOf(dataVal)
 
-	this.parseRule(fieldKey, ruleStr)
+	v.parseRule(fieldKey, ruleStr)
 
-	return this
+	return v
 }
 
-// 批量通过map添加指定验证规则
-func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[string]interface{}) *Validator {
+// AddMapRule 批量通过map添加指定验证规则
+func (v *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[string]interface{}) *Validator {
 	for key, tag := range ruleMap {
 		if len(tag) < 2 {
 			panic("rule error: At least two " + key + " elements.")
@@ -205,31 +207,30 @@ func (this *Validator) AddMapRule(ruleMap map[string][]string, dataVal map[strin
 		if ok && reflect.ValueOf(tempData).IsValid() {
 			data = tempData
 		} else {
-			if this.ContainSometimes(tag[1]) {
+			if v.ContainSometimes(tag[1]) {
 				continue
 			}
 
-			if this.ContainRequired(tag[1]) {
-				this.AddErrorMsg(key+".required", STR_REQUIRED, STR_NULL, nil)
+			if v.ContainRequired(tag[1]) {
+				v.AddErrorMsg(key+".required", STR_REQUIRED, STR_NULL, nil)
 				continue
 			}
 
-			this.AddErrorMsg(key, STR_NULL, STR_NULL, nil)
+			v.AddErrorMsg(key, STR_NULL, STR_NULL, nil)
 
 			continue
 		}
 
-		this.AddRule(key, tag[0], tag[1], data)
+		v.AddRule(key, tag[0], tag[1], data)
 	}
 
-	return this
+	return v
 }
 
-// 添加未定义func错误信息
-func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
+// AddFuncErrorMsg 添加未定义func错误信息
+func (v *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
 	keyStr := reflect.ValueOf(fieldKey).String()
 	method := reflect.ValueOf(attribute).String()
-
 	method = strings.ToLower(method)
 
 	errMsg := ""
@@ -242,16 +243,16 @@ func (this *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
 		errMsg = "The func " + method + "() is not defined."
 	}
 
-	this.Fails = false
+	v.Fails = false
 
-	_, err := this.ErrorMsg[keyStr]
+	_, err := v.ErrorMsg[keyStr]
 	if !err {
-		this.ErrorMsg[keyStr] = errMsg
+		v.ErrorMsg[keyStr] = errMsg
 	}
 }
 
-// 添加错误信息到error map中
-func (this *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interface{}) {
+// AddErrorMsg 添加错误信息到error map中
+func (v *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interface{}) {
 	keyStr := reflect.ValueOf(fieldKey).String()
 	valStr := reflect.ValueOf(value).String()
 	method := reflect.ValueOf(attribute).String()
@@ -283,25 +284,25 @@ func (this *Validator) AddErrorMsg(fieldKey, attribute, value, filedType interfa
 		errMsg = strings.Replace(errMsg, ERR_ATTR_ATTRIBUTE, filedStr, -1)
 		errMsg = strings.Replace(errMsg, ERR_ATTR_VALUE, valStr, -1)
 	} else {
-		defalutStr, ok := ruleErrorMsgMap[STR_DEFALUT]
+		defaultStr, ok := ruleErrorMsgMap[STR_DEFAULT]
 		if ok {
-			errMsg = reflect.ValueOf(defalutStr).String()
+			errMsg = reflect.ValueOf(defaultStr).String()
 			errMsg = strings.Replace(errMsg, ERR_ATTR_ATTRIBUTE, filedStr, -1)
 		} else {
 			errMsg = "The " + filedStr + " is invalid."
 		}
 	}
 
-	this.Fails = false
+	v.Fails = false
 
-	_, ok := this.ErrorMsg[keyStr]
+	_, ok := v.ErrorMsg[keyStr]
 	if !ok {
-		this.ErrorMsg[keyStr] = errMsg
+		v.ErrorMsg[keyStr] = errMsg
 	}
 }
 
-// 验证规则是否包含required
-func (this *Validator) ContainRequired(sRule string) bool {
+// ContainRequired 验证规则是否包含required
+func (v *Validator) ContainRequired(sRule string) bool {
 	str := string([]rune(sRule))
 	pos := strings.Index(str, STR_REQUIRED)
 	if pos != -1 {
@@ -311,8 +312,8 @@ func (this *Validator) ContainRequired(sRule string) bool {
 	return false
 }
 
-// 验证规则是否包含sometimes
-func (this *Validator) ContainSometimes(sRule string) bool {
+// ContainSometimes 验证规则是否包含sometimes
+func (v *Validator) ContainSometimes(sRule string) bool {
 	str := string([]rune(sRule))
 	pos := strings.Index(str, STR_SOMETIMES)
 
@@ -323,10 +324,10 @@ func (this *Validator) ContainSometimes(sRule string) bool {
 	return false
 }
 
-// 清除验证
-func (this *Validator) ClearError() {
-	this.Fails = true
-	this.ErrorMsg = make(map[string]string)
+// ClearError 清除验证
+func (v *Validator) ClearError() {
+	v.Fails = true
+	v.ErrorMsg = make(map[string]string)
 
 	ruleMap = make(map[string]interface{})
 	typeMap = make(map[string]interface{})

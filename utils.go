@@ -4,13 +4,13 @@ import (
 	"regexp"
 )
 
-// 正则表达
+// Matches 正则表达
 func Matches(str, pattern string) bool {
 	match, _ := regexp.MatchString(pattern, str)
 	return match
 }
 
-// 首字母转化为大写
+// Ucfirst 首字母转化为大写
 func Ucfirst(str string) string {
 	var upperStr string
 	tempStr := []rune(str)

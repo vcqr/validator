@@ -25,15 +25,15 @@ struct验证使用的是struct tag，则必须以“validate”关键字开头�
 ```golang
 // 定义struct
 type User struct {
-	Id      int    `validate:"required|min:0"`
-	Name    string `validate:"required|range:6,20"`
-	Age     int    `validate:"required|range:1,120"`
-	Sex     int    `validate:"required|in:0,1"`
-	IpAddr  string `validate:"isIP"`
-	BlogUrl string `validate:"isURL"`
-	IdCard  string `validate:"cn_IdCard"`
-	Mobile  string `validate:"cn_Mobile"`
-	Tel     string `validate:"cn_Tel"`
+	Id      int    `valid:"required|min:0"`
+	Name    string `valid:"required|range:6,20"`
+	Age     int    `valid:"required|range:1,120"`
+	Sex     int    `valid:"required|in:0,1"`
+	IpAddr  string `valid:"isIP"`
+	BlogUrl string `valid:"isURL"`
+	IdCard  string `valid:"cn_IdCard"`
+	Mobile  string `valid:"cn_Mobile"`
+	Tel     string `valid:"cn_Tel"`
 }
 ```
 
