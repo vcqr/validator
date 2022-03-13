@@ -1,10 +1,7 @@
 package validator
 
 import (
-	_ "encoding/base64"
 	"encoding/json"
-	_ "encoding/pem"
-	_ "fmt"
 	"net"
 	"net/url"
 	"reflect"
@@ -17,35 +14,81 @@ import (
 const maxURLRuneCount = 2083
 const minURLRuneCount = 3
 
-type Rules struct {
-}
+// RuleFn 规则函数
+type RuleFn func(string, string, reflect.Value) bool
 
-// NewRule 实例化
-func NewRule() *Rules {
-	return &Rules{}
+// RuleFns 规则表
+var RuleFns = map[string]RuleFn{
+	"Numeric":          Numeric,
+	"Range":            Range,
+	"In":               In,
+	"Min":              Min,
+	"Max":              Max,
+	"Email":            Email,
+	"Alpha":            Alpha,
+	"AlphaDash":        AlphaDash,
+	"AlphaNum":         AlphaNum,
+	"CnIdCard":         CnIdCard,
+	"CnMobile":         CnMobile,
+	"CnTel":            CnTel,
+	"Required":         Required,
+	"Sometimes":        Sometimes,
+	"IsHexadecimal":    IsHexadecimal,
+	"IsHexColor":       IsHexColor,
+	"IsRGBColor":       IsRGBColor,
+	"IsLowerCase":      IsLowerCase,
+	"IsUpperCase":      IsUpperCase,
+	"HasLowerCase":     HasLowerCase,
+	"HasUpperCase":     HasUpperCase,
+	"IsInt":            IsInt,
+	"IsFloat":          IsFloat,
+	"IsJSON":           IsJSON,
+	"IsMultibyte":      IsMultibyte,
+	"IsASCII":          IsASCII,
+	"IsPrintableASCII": IsPrintableASCII,
+	"IsFullWidth":      IsFullWidth,
+	"IsHalfWidth":      IsHalfWidth,
+	"IsVariableWidth":  IsVariableWidth,
+	"IsBase64":         IsBase64,
+	"IsFilePath":       IsFilePath,
+	"IsDataURI":        IsDataURI,
+	"IsHash":           IsHash,
+	"IsDNSName":        IsDNSName,
+	"IsURL":            IsURL,
+	"IsIP":             IsIP,
+	"IsPort":           IsPort,
+	"IsIPv4":           IsIPv4,
+	"IsIPv6":           IsIPv6,
+	"IsHost":           IsHost,
+	"IsMAC":            IsMAC,
+	"IsSSN":            IsSSN,
+	"IsUUID":           IsUUID,
+	"IsUUIDv3":         IsUUIDv3,
+	"IsUUIDv4":         IsUUIDv4,
+	"IsUUIDv5":         IsUUIDv5,
 }
 
 // IsNull 是否为空
-func (r *Rules) IsNull(str string) bool {
+func IsNull(str string) bool {
 	return len(str) == 0
 }
 
 // 获取字符串
-func (r *Rules) getStr(fieldType string, fieldVal reflect.Value) (string, bool) {
+func getStr(fieldType string, fieldVal reflect.Value) (string, bool) {
 	if fieldType != "string" {
 		return "", true
 	}
 	str := fieldVal.String()
 
-	if r.IsNull(str) {
+	if IsNull(str) {
 		return "", true
 	}
 	return str, false
 }
 
 // Numeric 验证字符串是否全部是数字
-func (r *Rules) Numeric(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func Numeric(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -55,7 +98,7 @@ func (r *Rules) Numeric(ruleVal, fieldType string, fieldVal reflect.Value) bool 
 
 // Range 验证大小必须在给定的 min 和 max 之间。字符串、数字、数组和文件的计算方式都使用 len 方法
 // rule exp "range:min,max"
-func (r *Rules) Range(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func Range(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	//包含分隔符
 	pos := strings.IndexAny(ruleVal, ",")
 	if pos == -1 {
@@ -90,7 +133,7 @@ func (r *Rules) Range(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 			return false
 		}
 
-		dataVal := float64(fieldVal.Float())
+		dataVal := fieldVal.Float()
 
 		if dataVal < min || dataVal > max {
 			return false
@@ -127,7 +170,7 @@ func (r *Rules) Range(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // In 验证数据是否在指定数据中
-func (r *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	typeStr := getTypeMapping(fieldType)
 
 	compareStr := ""
@@ -159,7 +202,7 @@ func (r *Rules) In(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // Min 验证数据不能小于指定的值, Array, Chan, Map, Slice类型比较长度
-func (r *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	typeStr := getTypeMapping(fieldType)
 	if typeStr == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
@@ -214,7 +257,7 @@ func (r *Rules) Min(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // Max 验证数据不能大于指定的值, Array, Chan, Map, Slice类型比较长度
-func (r *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	typeStr := getTypeMapping(fieldType)
 	if typeStr == "string" { // 字符串比较长度
 		val, err := strconv.Atoi(ruleVal)
@@ -236,7 +279,7 @@ func (r *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 
 		fVal := fieldVal.Float()
 
-		if fVal > float64(val) {
+		if fVal > val {
 			return false
 		}
 	} else if typeStr == "int" { // 其他默认整型
@@ -269,8 +312,8 @@ func (r *Rules) Max(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // Email 验证字段是否是合法邮箱地址
-func (r *Rules) Email(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func Email(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -279,8 +322,8 @@ func (r *Rules) Email(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // Alpha 验证字段必须完全由字母构成
-func (r *Rules) Alpha(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func Alpha(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -290,8 +333,8 @@ func (r *Rules) Alpha(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // AlphaDash 验证字段可能包含字母、数字，以及破折号 ( - ) 和下划线 ( _ )
-func (r *Rules) AlphaDash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func AlphaDash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -300,8 +343,8 @@ func (r *Rules) AlphaDash(ruleVal, fieldType string, fieldVal reflect.Value) boo
 }
 
 // AlphaNum 验证字段必须是完全是字母、数字
-func (r *Rules) AlphaNum(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func AlphaNum(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -310,8 +353,8 @@ func (r *Rules) AlphaNum(ruleVal, fieldType string, fieldVal reflect.Value) bool
 }
 
 // CnIdCard 中国身份证验证
-func (r *Rules) CnIdCard(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func CnIdCard(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -321,8 +364,8 @@ func (r *Rules) CnIdCard(ruleVal, fieldType string, fieldVal reflect.Value) bool
 }
 
 // CnMobile 中国手机号验证
-func (r *Rules) CnMobile(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func CnMobile(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -332,8 +375,8 @@ func (r *Rules) CnMobile(ruleVal, fieldType string, fieldVal reflect.Value) bool
 }
 
 // CnTel 中国电话号码验证
-func (r *Rules) CnTel(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func CnTel(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -343,10 +386,10 @@ func (r *Rules) CnTel(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // Required 字段是否必须，目前支持字符串
-func (r *Rules) Required(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func Required(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	if fieldType == "string" {
 		str := fieldVal.String()
-		if r.IsNull(str) {
+		if IsNull(str) {
 			return false
 		}
 	}
@@ -355,13 +398,13 @@ func (r *Rules) Required(ruleVal, fieldType string, fieldVal reflect.Value) bool
 }
 
 // Sometimes 字段不是必须
-func (r *Rules) Sometimes(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func Sometimes(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return true
 }
 
 // IsHexadecimal 验证是否是合法的16进制数据.
-func (r *Rules) IsHexadecimal(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsHexadecimal(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -371,8 +414,8 @@ func (r *Rules) IsHexadecimal(ruleVal, fieldType string, fieldVal reflect.Value)
 }
 
 // IsHexColor 验证是否是合法的16进制色值
-func (r *Rules) IsHexColor(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsHexColor(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -381,8 +424,8 @@ func (r *Rules) IsHexColor(ruleVal, fieldType string, fieldVal reflect.Value) bo
 }
 
 // IsRGBColor 验证是否是合法的rgb(RRR, GGG, BBB)色值
-func (r *Rules) IsRGBColor(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsRGBColor(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -391,8 +434,8 @@ func (r *Rules) IsRGBColor(ruleVal, fieldType string, fieldVal reflect.Value) bo
 }
 
 // IsLowerCase 验证是否是全小写字符串
-func (r *Rules) IsLowerCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsLowerCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -401,8 +444,8 @@ func (r *Rules) IsLowerCase(ruleVal, fieldType string, fieldVal reflect.Value) b
 }
 
 // IsUpperCase 验证是否是全大写字符串
-func (r *Rules) IsUpperCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsUpperCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -411,8 +454,8 @@ func (r *Rules) IsUpperCase(ruleVal, fieldType string, fieldVal reflect.Value) b
 }
 
 // HasLowerCase check if the string contains at least 1 lowercase.
-func (r *Rules) HasLowerCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func HasLowerCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -421,8 +464,8 @@ func (r *Rules) HasLowerCase(ruleVal, fieldType string, fieldVal reflect.Value) 
 }
 
 // HasUpperCase check if the string contians as least 1 uppercase.
-func (r *Rules) HasUpperCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func HasUpperCase(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -431,8 +474,8 @@ func (r *Rules) HasUpperCase(ruleVal, fieldType string, fieldVal reflect.Value) 
 }
 
 // IsInt 验证字符串是否是合法的有符号整型数据
-func (r *Rules) IsInt(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsInt(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -441,8 +484,8 @@ func (r *Rules) IsInt(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsFloat 验证字符串是否是合法的有符号浮点型数据
-func (r *Rules) IsFloat(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsFloat(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -451,8 +494,8 @@ func (r *Rules) IsFloat(ruleVal, fieldType string, fieldVal reflect.Value) bool 
 }
 
 // IsJSON 验证是否是合法的Json数据 (注: 使用了 json.Unmarshal).
-func (r *Rules) IsJSON(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsJSON(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -462,8 +505,8 @@ func (r *Rules) IsJSON(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsMultibyte check if the string contains one or more multibyte chars
-func (r *Rules) IsMultibyte(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsMultibyte(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -472,8 +515,8 @@ func (r *Rules) IsMultibyte(ruleVal, fieldType string, fieldVal reflect.Value) b
 }
 
 // IsASCII check if the string contains ASCII chars only.
-func (r *Rules) IsASCII(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsASCII(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -482,8 +525,8 @@ func (r *Rules) IsASCII(ruleVal, fieldType string, fieldVal reflect.Value) bool 
 }
 
 // IsPrintableASCII check if the string contains printable ASCII chars only. Empty string is valid.
-func (r *Rules) IsPrintableASCII(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsPrintableASCII(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -492,8 +535,8 @@ func (r *Rules) IsPrintableASCII(ruleVal, fieldType string, fieldVal reflect.Val
 }
 
 // IsFullWidth check if the string contains any full-width chars. Empty string is valid.
-func (r *Rules) IsFullWidth(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsFullWidth(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -502,8 +545,8 @@ func (r *Rules) IsFullWidth(ruleVal, fieldType string, fieldVal reflect.Value) b
 }
 
 // IsHalfWidth check if the string contains any half-width chars. Empty string is valid.
-func (r *Rules) IsHalfWidth(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsHalfWidth(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -512,8 +555,8 @@ func (r *Rules) IsHalfWidth(ruleVal, fieldType string, fieldVal reflect.Value) b
 }
 
 // IsVariableWidth check if the string contains a mixture of full and half-width chars. Empty string is valid.
-func (r *Rules) IsVariableWidth(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsVariableWidth(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -522,8 +565,8 @@ func (r *Rules) IsVariableWidth(ruleVal, fieldType string, fieldVal reflect.Valu
 }
 
 // IsBase64 check if a string is base64 encoded.
-func (r *Rules) IsBase64(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsBase64(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -532,8 +575,8 @@ func (r *Rules) IsBase64(ruleVal, fieldType string, fieldVal reflect.Value) bool
 }
 
 // IsFilePath check is a string is Win or Unix file path and returns it's type.
-func (r *Rules) IsFilePath(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsFilePath(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -554,8 +597,8 @@ func (r *Rules) IsFilePath(ruleVal, fieldType string, fieldVal reflect.Value) bo
 }
 
 // IsDataURI checks if a string is base64 encoded data URI such as an image
-func (r *Rules) IsDataURI(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsDataURI(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -564,13 +607,13 @@ func (r *Rules) IsDataURI(ruleVal, fieldType string, fieldVal reflect.Value) boo
 	if !rxDataURI.MatchString(dataURI[0]) {
 		return false
 	}
-	return r.IsBase64(ruleVal, fieldType, reflect.ValueOf(dataURI[1]))
+	return IsBase64(ruleVal, fieldType, reflect.ValueOf(dataURI[1]))
 }
 
 // IsHash 验证是否是合法的指定加密算法生成的串
 // ruleVal 必须是后面数组其中的一个 ['md4', 'md5', 'sha1', 'sha256', 'sha384', 'sha512', 'ripemd128', 'ripemd160', 'tiger128', 'tiger160', 'tiger192', 'crc32', 'crc32b']
-func (r *Rules) IsHash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsHash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -601,23 +644,22 @@ func (r *Rules) IsHash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsDNSName will validate the given string as a DNS name
-func (r *Rules) IsDNSName(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsDNSName(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
 
 	if len(strings.Replace(str, ".", "", -1)) > 255 {
-		// constraints already violated
 		return false
 	}
 
-	return !r.IsIP(ruleVal, fieldType, reflect.ValueOf(str)) && rxDNSName.MatchString(str)
+	return !IsIP(ruleVal, fieldType, reflect.ValueOf(str)) && rxDNSName.MatchString(str)
 }
 
 // IsURL 验证是否是合法的Url
-func (r *Rules) IsURL(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsURL(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -647,8 +689,8 @@ func (r *Rules) IsURL(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsIP 验证是否是合法的ip地址
-func (r *Rules) IsIP(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsIP(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -657,7 +699,7 @@ func (r *Rules) IsIP(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsPort 验证是否是合法的端口
-func (r *Rules) IsPort(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+func IsPort(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	var port int64 = 0
 	if fieldType == "string" {
 		str := fieldVal.String()
@@ -685,8 +727,8 @@ func (r *Rules) IsPort(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsIPv4 验证是否是合法的ipv4地址
-func (r *Rules) IsIPv4(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsIPv4(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -697,8 +739,8 @@ func (r *Rules) IsIPv4(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsIPv6 验证是否是合法的ipv6地址
-func (r *Rules) IsIPv6(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsIPv6(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -709,13 +751,13 @@ func (r *Rules) IsIPv6(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsHost 验证是否是合法的host地址
-func (r *Rules) IsHost(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	return r.IsIP(ruleVal, fieldType, fieldVal) || r.IsDNSName(ruleVal, fieldType, fieldVal)
+func IsHost(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	return IsIP(ruleVal, fieldType, fieldVal) || IsDNSName(ruleVal, fieldType, fieldVal)
 }
 
 // IsMAC 验证是否是合法的mac地址
-func (r *Rules) IsMAC(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsMAC(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -726,8 +768,8 @@ func (r *Rules) IsMAC(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 }
 
 // IsSSN 验证是否是合法的SSN
-func (r *Rules) IsSSN(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsSSN(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -739,9 +781,19 @@ func (r *Rules) IsSSN(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 	return rxSSN.MatchString(str)
 }
 
+// IsUUID check if the string is a UUID (version 3, 4 or 5).
+func IsUUID(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
+	if err {
+		return false
+	}
+
+	return rxUUID.MatchString(str)
+}
+
 // IsUUIDv3 check if the string is a UUID version 3.
-func (r *Rules) IsUUIDv3(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsUUIDv3(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -750,8 +802,8 @@ func (r *Rules) IsUUIDv3(ruleVal, fieldType string, fieldVal reflect.Value) bool
 }
 
 // IsUUIDv4 check if the string is a UUID version 4.
-func (r *Rules) IsUUIDv4(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsUUIDv4(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
@@ -760,21 +812,11 @@ func (r *Rules) IsUUIDv4(ruleVal, fieldType string, fieldVal reflect.Value) bool
 }
 
 // IsUUIDv5 check if the string is a UUID version 5.
-func (r *Rules) IsUUIDv5(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
+func IsUUIDv5(ruleVal, fieldType string, fieldVal reflect.Value) bool {
+	str, err := getStr(fieldType, fieldVal)
 	if err {
 		return false
 	}
 
 	return rxUUID5.MatchString(str)
-}
-
-// IsUUID check if the string is a UUID (version 3, 4 or 5).
-func (r *Rules) IsUUID(ruleVal, fieldType string, fieldVal reflect.Value) bool {
-	str, err := r.getStr(fieldType, fieldVal)
-	if err {
-		return false
-	}
-
-	return rxUUID.MatchString(str)
 }
