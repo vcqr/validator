@@ -9,7 +9,7 @@ import (
 func main() {
 	v := validator.New()
 	ruleMap := map[string][]string{
-		"Id":    []string{"int", "required|min:100", "id不合法"},
+		"Id":    []string{"int", "required|min:100"},
 		"Name":  []string{"string", "required|min:10"},
 		"Email": []string{"string", "required|Email"},
 		"From":  []string{"string", "sometimes|in:cn,us,uk,tk,tw"},

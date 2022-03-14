@@ -8,7 +8,6 @@ import (
 
 const (
 	STR_NULL      = "null"      // 空字符串
-	STR_REQUIRED  = "required"  // 必须字符串
 	STR_UNDEFINED = "undefined" // 未定义字符串
 	STR_SOMETIMES = "sometimes" // 存在时字符串
 	STR_DEFAULT   = "default"   // 默认字符串
@@ -22,20 +21,21 @@ const (
 
 type TagFn func(CheckEntry) bool
 
+// Validator 校验器
 type Validator struct {
 	mu sync.Mutex
+
+	// 设置错误信息
+	ErrorMsg map[string]string
 
 	// 是否验证通过
 	Fails bool
 
-	// 自定义验证方法
-	TagMap map[string]TagFn
-
 	// 结构
-	CheckEntries map[string]CheckEntry
+	checkEntries map[string]CheckEntry
 
-	// 设置错误信息
-	ErrorMsg map[string]string
+	// 自定义验证方法
+	tagMap map[string]TagFn
 }
 
 // CheckEntry 检验对象
@@ -58,14 +58,14 @@ type CheckEntry struct {
 
 // New 实例化验证器
 func New() *Validator {
-	validator := &Validator{
+	v := &Validator{
 		Fails:        true,
 		ErrorMsg:     make(map[string]string),
-		CheckEntries: make(map[string]CheckEntry),
-		TagMap:       make(map[string]TagFn),
+		checkEntries: make(map[string]CheckEntry),
+		tagMap:       make(map[string]TagFn),
 	}
 
-	return validator
+	return v
 }
 
 // Validate 执行验证
@@ -133,16 +133,22 @@ func (v *Validator) parseRule(entry CheckEntry) {
 
 		lowerMethod := strings.ToLower(ruleFn)
 		key := entry.FieldName + "." + lowerMethod
-		if _, ok := v.CheckEntries[key]; ok {
+		if _, ok := v.checkEntries[key]; ok {
 			return
 		}
 
-		v.CheckEntries[key] = CheckEntry{
+		data, ok := entry.Data.(reflect.Value)
+		if !ok {
+			data = reflect.ValueOf(entry.Data)
+		}
+
+		v.checkEntries[key] = CheckEntry{
 			FieldName: entry.FieldName,
 			FieldType: entry.FieldType,
+			RuleFull:  entry.RuleFull,
 			ruleFn:    ruleFn,
 			ruleVal:   val,
-			Data:      entry.Data,
+			Data:      data,
 			ErrMsg:    entry.ErrMsg,
 		}
 	}
@@ -166,6 +172,8 @@ func (v *Validator) getErrMsg(key string, entry CheckEntry) string {
 		} else {
 			errMsg = "The " + filedStr + " is invalid."
 		}
+
+		return errMsg
 	}
 
 	// 消息类型
@@ -195,11 +203,11 @@ func (v *Validator) getErrMsg(key string, entry CheckEntry) string {
 // 执行解析
 // 解析优先使用rule中的相关方法，如果不存在看是否存在用户自定义的方法，如果都没有则返回false，并添加到相关的错误中
 func (v *Validator) doCheck() {
-	if v.CheckEntries == nil {
+	if v.checkEntries == nil {
 		return
 	}
 
-	for key, entry := range v.CheckEntries {
+	for key, entry := range v.checkEntries {
 		method := Ucfirst(entry.ruleFn)
 		// 如果预定义的方法存在优先执行
 		if fn, ok := RuleFns[method]; ok {
@@ -208,21 +216,23 @@ func (v *Validator) doCheck() {
 		}
 
 		// 尝试执行自定义方法
-		v.callDefineFn(key, entry, method)
+		if fn, ok := v.tagMap[method]; ok {
+			v.callDefineFn(key, entry, fn)
+			continue
+		}
+
+		// 未知方法
+		v.AddFuncErrorMsg(key, method)
 	}
 }
 
 // 调用已有预定义的方法
 func (v *Validator) callRuleFn(key string, entry CheckEntry, fn RuleFn) {
-	fieldVal, ok := entry.Data.(reflect.Value)
-	if !ok {
-		return
-	}
-
-	// 检查传的值是否有效
-	if !fieldVal.IsValid() {
-		v.AddErrorMsg(key, entry)
-		return
+	fieldVal := entry.Data.(reflect.Value)
+	if !fieldVal.IsValid() || fieldVal.String() == "" {
+		if v.ContainSometimes(entry.RuleFull) {
+			return
+		}
 	}
 
 	// 执行校验
@@ -234,17 +244,28 @@ func (v *Validator) callRuleFn(key string, entry CheckEntry, fn RuleFn) {
 }
 
 // 调用自定义校验方法
-func (v *Validator) callDefineFn(key string, entry CheckEntry, method string) {
-	// 方法名统一转化为小写
-	defineFunc, isSet := v.TagMap[method]
-	if isSet {
-		ret := defineFunc(entry)
-		if ret == false {
-			v.AddErrorMsg(key, entry)
+func (v *Validator) callDefineFn(key string, entry CheckEntry, fn TagFn) {
+	fieldVal := entry.Data.(reflect.Value)
+	if !fieldVal.IsValid() || fieldVal.String() == "" {
+		if v.ContainSometimes(entry.RuleFull) {
+			return
 		}
-	} else {
-		v.AddFuncErrorMsg(key, method)
 	}
+
+	// 方法名统一转化为小写
+	ret := fn(entry)
+	if ret == false {
+		v.AddErrorMsg(key, entry)
+	}
+}
+
+// AddRuleFn 添加自定义函数
+func (v *Validator) AddRuleFn(name string, fn TagFn) {
+	if name == "" {
+		panic("Validator error: rule function name empty.")
+	}
+
+	v.tagMap[name] = fn
 }
 
 // AddRule 逐条添加指定的验证规则
@@ -267,8 +288,8 @@ func (v *Validator) AddRules(nodes []CheckEntry) *Validator {
 
 // AddMapRule 批量通过map添加指定验证规则
 func (v *Validator) AddMapRule(ruleMap map[string][]string, dataMap map[string]interface{}) *Validator {
-	for k, data := range dataMap {
-		tag := ruleMap[k]
+	for k, tag := range ruleMap {
+		data := dataMap[k]
 		if len(tag) < 2 {
 			panic("rule error: At least two " + k + " elements.")
 		}
@@ -291,12 +312,9 @@ func (v *Validator) AddMapRule(ruleMap map[string][]string, dataMap map[string]i
 }
 
 // AddFuncErrorMsg 添加未定义func错误信息
-func (v *Validator) AddFuncErrorMsg(fieldKey, attribute interface{}) {
+func (v *Validator) AddFuncErrorMsg(keyStr, method string) {
 	// 优先设置错误
 	v.Fails = false
-
-	keyStr := fieldKey.(string)
-	method := attribute.(string)
 
 	errMsg := ""
 	if errStr, ok := ruleErrorMsgMap[STR_UNDEFINED]; ok {
@@ -330,20 +348,9 @@ func (v *Validator) AddErrorMsg(key string, entry CheckEntry) {
 	}
 }
 
-// ContainRequired 验证规则是否包含required
-func (v *Validator) ContainRequired(sRule string) bool {
-	pos := strings.Index(sRule, STR_REQUIRED)
-	if pos != -1 {
-		return true
-	}
-
-	return false
-}
-
 // ContainSometimes 验证规则是否包含sometimes
 func (v *Validator) ContainSometimes(sRule string) bool {
 	pos := strings.Index(sRule, STR_SOMETIMES)
-
 	if pos != -1 {
 		return true
 	}
@@ -356,8 +363,8 @@ func (v *Validator) Reset() *Validator {
 	v.Fails = true
 
 	v.ErrorMsg = make(map[string]string)
-	v.CheckEntries = make(map[string]CheckEntry)
-	v.TagMap = make(map[string]TagFn)
+	v.checkEntries = make(map[string]CheckEntry)
+	v.tagMap = make(map[string]TagFn)
 
 	return v
 }

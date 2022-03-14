@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -25,44 +26,47 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	mobile := r.URL.Query().Get("mobile")
 	idcard := r.URL.Query().Get("idcard")
 
-	v.AddRule(validator.CheckEntry{
-		FieldName: "username",
-		FieldType: "string",
-		RuleFull:  "required|range:8,20",
-		ErrMsg:    "",
-		Data:      userName,
-	})
-	v.AddRule(validator.CheckEntry{
-		FieldName: "email",
-		FieldType: "string",
-		RuleFull:  "required|range:6,20|email",
-		ErrMsg:    "",
-		Data:      email,
-	})
-	v.AddRule(validator.CheckEntry{
-		FieldName: "password",
-		FieldType: "string",
-		RuleFull:  "required|range:8,20",
-		ErrMsg:    "",
-		Data:      password,
-	})
-	v.AddRule(validator.CheckEntry{
-		FieldName: "mobile",
-		FieldType: "string",
-		RuleFull:  "required|CnMobile",
-		ErrMsg:    "",
-		Data:      mobile,
-	})
+	entries := []validator.CheckEntry{
+		{
+			FieldName: "username",
+			FieldType: "string",
+			RuleFull:  "required|range:8,20",
+			ErrMsg:    "",
+			Data:      userName,
+		},
+		{
+			FieldName: "email",
+			FieldType: "string",
+			RuleFull:  "required|range:6,20|email",
+			ErrMsg:    "",
+			Data:      email,
+		},
+		{
+			FieldName: "password",
+			FieldType: "string",
+			RuleFull:  "required|range:8,20",
+			ErrMsg:    "",
+			Data:      password,
+		},
+		{
+			FieldName: "mobile",
+			FieldType: "string",
+			RuleFull:  "required|CnMobile",
+			ErrMsg:    "",
+			Data:      mobile,
+		},
+		{
+			FieldName: "idcard",
+			FieldType: "string",
+			RuleFull:  "required|CnIdCard",
+			ErrMsg:    "",
+			Data:      idcard,
+		},
+	}
 
-	v.AddRule(validator.CheckEntry{
-		FieldName: "idcard",
-		FieldType: "string",
-		RuleFull:  "required|CnIdCard",
-		ErrMsg:    "",
-		Data:      idcard,
-	})
+	v.AddRules(entries).Validate()
 
-	v.Validate()
+	fmt.Printf("%+v, %+v \n", v.ErrorMsg, v.Fails)
 
 	// 验证有错误发生
 	var b bytes.Buffer

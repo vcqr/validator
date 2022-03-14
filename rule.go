@@ -394,6 +394,10 @@ func Required(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		}
 	}
 
+	if !fieldVal.IsValid() {
+		return false
+	}
+
 	return true
 }
 
