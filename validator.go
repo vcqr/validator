@@ -316,12 +316,10 @@ func (v *Validator) AddFuncErrorMsg(keyStr, method string) {
 	// 优先设置错误
 	v.Fails = false
 
-	errMsg := ""
+	errMsg := "The func " + method + "() is not defined."
 	if errStr, ok := ruleErrorMsgMap[STR_UNDEFINED]; ok {
 		errMsg = reflect.ValueOf(errStr).String()
 		errMsg = strings.Replace(errMsg, ERR_ATTR_FUNC, method, -1)
-	} else {
-		errMsg = "The func " + method + "() is not defined."
 	}
 
 	if _, ok := v.ErrorMsg[keyStr]; !ok {

@@ -622,28 +622,28 @@ func IsHash(ruleVal, fieldType string, fieldVal reflect.Value) bool {
 		return false
 	}
 
-	len := "0"
+	L := "0"
 	algo := strings.ToLower(ruleVal) //指定算法
 
 	if algo == "crc32" || algo == "crc32b" {
-		len = "8"
+		L = "8"
 	} else if algo == "md5" || algo == "md4" || algo == "ripemd128" || algo == "tiger128" {
-		len = "32"
+		L = "32"
 	} else if algo == "sha1" || algo == "ripemd160" || algo == "tiger160" {
-		len = "40"
+		L = "40"
 	} else if algo == "tiger192" {
-		len = "48"
+		L = "48"
 	} else if algo == "sha256" {
-		len = "64"
+		L = "64"
 	} else if algo == "sha384" {
-		len = "96"
+		L = "96"
 	} else if algo == "sha512" {
-		len = "128"
+		L = "128"
 	} else {
 		return false
 	}
 
-	return Matches(str, "^[a-f0-9]{"+len+"}$")
+	return Matches(str, "^[a-f0-9]{"+L+"}$")
 
 }
 
