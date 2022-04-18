@@ -27,12 +27,14 @@ type Validator struct {
 
 	// 设置错误信息
 	ErrorMsg map[string]string
+	// 错误信息key，保持顺序
+	ErrorKey []string
 
 	// 是否验证通过
 	Fails bool
 
 	// 结构
-	checkEntries map[string]CheckEntry
+	checkEntries []CheckEntry
 
 	// 自定义验证方法
 	tagMap map[string]TagFn
@@ -40,6 +42,8 @@ type Validator struct {
 
 // CheckEntry 检验对象
 type CheckEntry struct {
+	// 对象id
+	id string
 	// 字段名字
 	FieldName string
 	// 字段类型
@@ -61,7 +65,8 @@ func New() *Validator {
 	v := &Validator{
 		Fails:        true,
 		ErrorMsg:     make(map[string]string),
-		checkEntries: make(map[string]CheckEntry),
+		ErrorKey:     make([]string, 0),
+		checkEntries: make([]CheckEntry, 0),
 		tagMap:       make(map[string]TagFn),
 	}
 
@@ -136,16 +141,14 @@ func (v *Validator) parseRule(entry CheckEntry) {
 
 		lowerMethod := strings.ToLower(ruleFn)
 		key := entry.FieldName + "." + lowerMethod
-		if _, ok := v.checkEntries[key]; ok {
-			return
-		}
 
 		data, ok := entry.Data.(reflect.Value)
 		if !ok {
 			data = reflect.ValueOf(entry.Data)
 		}
 
-		v.checkEntries[key] = CheckEntry{
+		v.checkEntries = append(v.checkEntries, CheckEntry{
+			id:        key,
 			FieldName: entry.FieldName,
 			FieldType: entry.FieldType,
 			RuleFull:  entry.RuleFull,
@@ -153,7 +156,7 @@ func (v *Validator) parseRule(entry CheckEntry) {
 			ruleVal:   val,
 			Data:      data,
 			ErrMsg:    entry.ErrMsg,
-		}
+		})
 	}
 }
 
@@ -210,22 +213,22 @@ func (v *Validator) doCheck() {
 		return
 	}
 
-	for key, entry := range v.checkEntries {
+	for _, entry := range v.checkEntries {
 		method := Ucfirst(entry.ruleFn)
 		// 如果预定义的方法存在优先执行
 		if fn, ok := RuleFns[method]; ok {
-			v.callRuleFn(key, entry, fn)
+			v.callRuleFn(entry.id, entry, fn)
 			continue
 		}
 
 		// 尝试执行自定义方法
 		if fn, ok := v.tagMap[method]; ok {
-			v.callDefineFn(key, entry, fn)
+			v.callDefineFn(entry.id, entry, fn)
 			continue
 		}
 
 		// 未知方法
-		v.AddFuncErrorMsg(key, method)
+		v.AddFuncErrorMsg(entry.id, method)
 	}
 }
 
@@ -327,6 +330,7 @@ func (v *Validator) AddFuncErrorMsg(keyStr, method string) {
 
 	if _, ok := v.ErrorMsg[keyStr]; !ok {
 		v.ErrorMsg[keyStr] = errMsg
+		v.ErrorKey = append(v.ErrorKey, keyStr)
 	}
 }
 
@@ -337,6 +341,7 @@ func (v *Validator) AddErrorMsg(key string, entry CheckEntry) {
 
 	_, ok := v.ErrorMsg[key]
 	if !ok {
+		v.ErrorKey = append(v.ErrorKey, key)
 		// 返回自定义错误
 		if entry.ErrMsg != "" {
 			v.ErrorMsg[key] = entry.ErrMsg
@@ -363,8 +368,9 @@ func (v *Validator) ContainSometimes(sRule string) bool {
 func (v *Validator) Reset() *Validator {
 	v.Fails = true
 
+	v.ErrorKey = make([]string, 0)
 	v.ErrorMsg = make(map[string]string)
-	v.checkEntries = make(map[string]CheckEntry)
+	v.checkEntries = make([]CheckEntry, 0)
 	v.tagMap = make(map[string]TagFn)
 
 	return v
