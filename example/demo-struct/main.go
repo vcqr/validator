@@ -20,7 +20,17 @@ type User struct {
 }
 
 func main() {
-	u := User{
+	u := struct {
+		Id      int    `valid:"Required|Min:0" errMsg:"字段ID不合法"`
+		Name    string `valid:"Required|range:6,20"`
+		Age     int    `valid:"Required|range:1,80"`
+		Sex     int    `valid:"Required|in:0,1"`
+		IpAddr  string `valid:"IsIP"`
+		BlogUrl string `valid:"IsURL"`
+		IdCard  string `valid:"CnIdCard"`
+		Mobile  string `valid:"CnMobile"`
+		Tel     string `valid:"CnTel"`
+	}{
 		Id:      -1,
 		Name:    "zhangsan",
 		Age:     100,

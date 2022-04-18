@@ -90,6 +90,9 @@ func (v *Validator) Struct(obj interface{}) *Validator {
 func (v *Validator) parseStruct(rv reflect.Value) {
 	t := rv.Type()
 	objName := t.Name()
+	if objName == "" {
+		objName = "struct"
+	}
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
